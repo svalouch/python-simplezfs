@@ -49,7 +49,7 @@ class TestZFS:
         def mock_get_property(myself, dataset, key, is_metadata):
             assert dataset == 'tank/test'
             assert key == 'testns:all'
-            assert is_metadata == True
+            assert is_metadata is True
 
         with patch.object(ZFS, '_get_property', new=mock_get_property):
             zfs = ZFS(metadata_namespace='testns')
@@ -61,7 +61,7 @@ class TestZFS:
 
         with patch.object(ZFS, '_get_property', new=mock_get_property):
             zfs = ZFS()
-            with pytest.raises(ValidationError) as excinfo:
+            with pytest.raises(ValidationError):
                 zfs.get_property('tan#k/test', 'compression')
 
     def test_get_property_meta_nooverwrite_invalidns_unhappy(self):
@@ -97,7 +97,7 @@ class TestZFS:
         def mock_get_property(myself, dataset, key, is_metadata):
             assert dataset == 'tank'
             assert key == 'compression'
-            assert is_metadata == False
+            assert is_metadata is False
 
         with patch.object(ZFS, '_get_property', new=mock_get_property):
             zfs = ZFS()
@@ -120,7 +120,7 @@ class TestZFS:
         def mock_get_property(myself, dataset: str, key: str, is_metadata: bool):
             assert dataset == 'tank/test'
             assert key == 'compression'
-            assert is_metadata == False
+            assert is_metadata is False
 
         with patch.object(ZFS, '_get_property', new=mock_get_property):
             zfs = ZFS()
@@ -130,7 +130,7 @@ class TestZFS:
         def mock_get_property(myself, dataset, key, is_metadata):
             assert dataset == 'tank/test'
             assert key == 'testns:testprop'
-            assert is_metadata == True
+            assert is_metadata is True
 
         with patch.object(ZFS, '_get_property', new=mock_get_property):
             zfs = ZFS(metadata_namespace='testns')
@@ -140,7 +140,7 @@ class TestZFS:
         def mock_get_property(myself, dataset, key, is_metadata):
             assert dataset == 'tank/test'
             assert key == 'testns:testprop'
-            assert is_metadata == True
+            assert is_metadata is True
 
         with patch.object(ZFS, '_get_property', new=mock_get_property):
             zfs = ZFS(metadata_namespace='pytest')
@@ -169,7 +169,7 @@ class TestZFS:
 
         with patch.object(ZFS, '_get_property', new=mock_get_property):
             zfs = ZFS(metadata_namespace='testns')
-            with pytest.raises(ValidationError) as excinfo:
+            with pytest.raises(ValidationError):
                 zfs.get_property('tank/test', 'testns:testprop', metadata=False)
 
     ##########################################################################
@@ -182,7 +182,7 @@ class TestZFS:
     def test_get_properties_poolname_nometa_happy(self):
         def mock_get_properties(myself, dataset, include_metadata):
             assert dataset == 'tank'
-            assert include_metadata == False
+            assert include_metadata is False
 
         with patch.object(ZFS, '_get_properties', new=mock_get_properties):
             zfs = ZFS()
@@ -197,7 +197,7 @@ class TestZFS:
 
         with patch.object(ZFS, '_get_properties', new=mock_get_properties):
             zfs = ZFS()
-            with pytest.raises(ValidationError) as excinfo:
+            with pytest.raises(ValidationError):
                 zfs.get_properties('as#df/tank')
 
     ##########################################################################
@@ -230,7 +230,7 @@ class TestZFS:
 
         with patch.object(ZFS, '_set_property', new=mock_set_property):
             zfs = ZFS()
-            with pytest.raises(ValidationError) as excinfo:
+            with pytest.raises(ValidationError):
                 zfs.set_property('ta#nk/test', 'compression', 'lz4')
 
     def test_set_property_meta_nooverwrite_invalidns_unhappy(self):
@@ -327,7 +327,7 @@ class TestZFS:
 
         with patch.object(ZFS, '_set_property', new=mock_set_property):
             zfs = ZFS(metadata_namespace='testns')
-            with pytest.raises(ValidationError) as excinfo:
+            with pytest.raises(ValidationError):
                 zfs.set_property('tank/test', 'testns:testprop', 'testval', metadata=False)
 
     ##########################################################################
@@ -351,13 +351,14 @@ class TestZFS:
 
     ##########################################################################
 
+
 class TestZFSGetZFS:
 
     def test_get_zfs_default(self):
         # TODO we might need to mock the shutils.which
         zfs = get_zfs()
         assert type(zfs) == ZFSCli
-        assert zfs.metadata_namespace == None
+        assert zfs.metadata_namespace is None
 
     def test_get_zfs_cli(self):
         zfs = get_zfs('cli')

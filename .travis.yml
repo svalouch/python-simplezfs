@@ -1,0 +1,13 @@
+---
+language: python
+python:
+  - '3.6'
+  - '3.7'
+install:
+  - pip install -r requirements.txt
+  - pip install -r requirements_develop.txt
+  - pip install .
+script:
+  - pytest --cov=simplezfs --cov-report=term-missing ${@}
+  - mypy src/simplezfs
+  - flake8

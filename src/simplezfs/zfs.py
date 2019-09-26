@@ -69,7 +69,7 @@ class ZFS:
         '''
         self._metadata_namespace = namespace
 
-    def dataset_exists(self, name: str ) -> bool:
+    def dataset_exists(self, name: str) -> bool:
         '''
         Checks is a dataset exists. This is done by querying for its `type` property.
 
@@ -442,6 +442,9 @@ class ZFS:
 
         # validate type specifics
         if dataset_type == DatasetType.VOLUME:
+            if '@' in name or '#' in name:
+                raise ValidationError('Volumes can\'t contain @ or #')
+
             if not size:
                 raise ValidationError('Size must be specified for volumes')
             try:
@@ -455,14 +458,15 @@ class ZFS:
             if properties and 'blocksize' in properties:
                 try:
                     blocksize = int(properties['blocksize'])
-                except ValueError as e:
+                except ValueError:
                     raise ValidationError('blocksize must be an integer')
-                if blocksize < 2 or blocksize > 128*1024:  # zfs(8) version 0.8.1 lists 128KB as maximum
+                if blocksize < 2 or blocksize > 128 * 1024:  # zfs(8) version 0.8.1 lists 128KB as maximum
                     raise ValidationError('blocksize must be between 2 and 128kb (inclusive)')
-                if not ((blocksize & (blocksize-1) == 0) and blocksize != 0):
+                if not ((blocksize & (blocksize - 1) == 0) and blocksize != 0):
                     raise ValidationError('blocksize must be a power of two')
 
             # TODO recursive
+            #
 
         elif dataset_type == DatasetType.FILESET:
             if '@' in name or '#' in name:

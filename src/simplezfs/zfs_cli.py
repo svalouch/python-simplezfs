@@ -9,12 +9,10 @@ import os
 import shutil
 import subprocess
 
-from .exceptions import DatasetNotFound, PropertyNotFound, ValidationError
-from .types import Property, Dataset, DatasetType
+from .exceptions import DatasetNotFound, PropertyNotFound
+from .types import Property, Dataset
 from .validation import (
     validate_dataset_path,
-    validate_metadata_property_name,
-    validate_native_property_name,
     validate_pool_name,
 )
 from .zfs import ZFS
@@ -58,37 +56,6 @@ class ZFSCli(ZFS):
         Returns the zfs executable that was found by find_executable
         '''
         return self.__exe
-
-    @staticmethod
-    def parse_dataset_identifier(name: str) -> Dataset:
-        '''
-        Parses a dataset identifier like ``pool/system/root@initial`` to a :class:`~simplezfs.types.Dataset`.
-
-        :param name: The name to parse.
-        :return: The dataset.
-        :raises ValidationError: If the argument is not valid or the argument was a pool.
-        '''
-        if '/' in name:
-            validate_dataset_path(name)
-            tokens = name.split('/')
-            ds_name = tokens[-1]
-            ds_parent = '/'.join(tokens[:-1])  # type: Optional[str]
-            ds_pool = tokens[0]
-        else:
-            validate_pool_name(name)
-            ds_name = name
-            ds_parent = None
-            ds_pool = name
-
-        if '@' in ds_name:
-            ds_type = DatasetType.SNAPSHOT
-        elif '#' in ds_name:
-            ds_type = DatasetType.BOOKMARK
-        elif ZFSCli.is_zvol(name):
-            ds_type = DatasetType.VOLUME
-        else:
-            ds_type = DatasetType.FILESET
-        return Dataset(name=ds_name, parent=ds_parent, type=ds_type, full_path=name, pool=ds_pool)
 
     @staticmethod
     def is_zvol(name: str) -> bool:
@@ -135,7 +102,7 @@ class ZFSCli(ZFS):
         for line in proc.stdout.strip().split('\n'):
             # format is NAME, USED, AVAIL, REFER, MOUNTPOINT, we only care for the name here
             name = line.split('\t')[0]
-            res.append(ZFSCli.parse_dataset_identifier(name.strip()))
+            res.append(Dataset.from_string(name.strip()))
         return res
 
     def handle_command_error(self, proc: subprocess.CompletedProcess, dataset: str = None) -> None:
@@ -198,11 +165,11 @@ class ZFSCli(ZFS):
             namespace = prop_name.split(':')[0]
 
         return Property(key=prop_name, value=prop_value, source=prop_source, namespace=namespace)
-        
+
     def _get_properties(self, dataset: str, include_metadata: bool = False) -> List[Property]:
         '''
         Gets all properties from a dataset, basically running ``zfs get -H -p all {dataset}``.
-        
+
         :raises DatasetNotFound: If the dataset does not exist.
         '''
         args = [self.__exe, 'get', '-H', '-p', 'all', dataset]

@@ -3,13 +3,11 @@
 Tests the ZFSCli class, non-distructive version.
 '''
 
-from unittest.mock import patch, PropertyMock
+from unittest.mock import patch
 import pytest
 import subprocess
 
-from simplezfs.exceptions import ValidationError
 from simplezfs.types import Dataset, DatasetType
-from simplezfs.validation import validate_dataset_path
 from simplezfs.zfs_cli import ZFSCli
 
 
@@ -18,41 +16,7 @@ class TestZFSCli:
     def test_init_noparam(self):
         instance = ZFSCli()  # noqa: F841
 
-
     ########################
-
-    @patch('simplezfs.zfs_cli.ZFSCli.is_zvol')
-    @pytest.mark.parametrize('identifier,name,parent,dstype,pool', [
-        ('pool/test',                'test',          'pool',       DatasetType.FILESET,  'pool'),
-        ('pool/test@st',             'test@st',       'pool',       DatasetType.SNAPSHOT, 'pool'),
-        ('pool/test1/test@snap-12',  'test@snap-12',  'pool/test1', DatasetType.SNAPSHOT, 'pool'),
-        ('tank/test#bm1',            'test#bm1',      'tank',       DatasetType.BOOKMARK, 'tank'),
-        ('tank/test1/test#bmark-12', 'test#bmark-12', 'tank/test1', DatasetType.BOOKMARK, 'tank'),
-        ('pool/test2',               'test2',         'pool',       DatasetType.VOLUME,   'pool'),
-        ('pool/test2/test',          'test',          'pool/test2', DatasetType.VOLUME,   'pool'),
-    ])
-    def test_parse_dataset_identifier_valid(self, is_zvol, identifier, name, parent, dstype, pool):
-        '''
-        Tests the happy path.
-        '''
-        validate_dataset_path(identifier)
-        
-        is_zvol.return_value = dstype == DatasetType.VOLUME
-
-        ds = ZFSCli.parse_dataset_identifier(identifier)
-        assert isinstance(ds, Dataset)
-        assert ds.name == name
-        assert ds.parent == parent
-        assert ds.type == dstype
-        assert ds.full_path == identifier
-        assert ds.pool == pool
-
-    @pytest.mark.parametrize('identifier', [' /asd', ' /asd', '\0/asd', 'mirrored/asd', 'raidz fun/asd'])
-    def test_parse_dataset_identifier_invalid(self, identifier):
-        with pytest.raises(ValidationError):
-            ZFSCli.parse_dataset_identifier(identifier)
-
-    ######################
 
     @patch('os.path.exists')
     def test_is_zvol_ok_exists(self, exists):

@@ -3,8 +3,11 @@
 Type declarations
 '''
 
+import os
 from enum import Enum, unique
 from typing import NamedTuple, Optional
+
+from .validation import validate_dataset_path, validate_pool_name
 
 
 @unique
@@ -59,6 +62,38 @@ class Dataset(NamedTuple):
     parent: Optional[str]
     #: Dataset type
     type: DatasetType
+
+    @staticmethod
+    def from_string(value: str) -> 'Dataset':
+        '''
+        Helper to convert a string to a Dataset.
+
+        :param value: The value to convert.
+        :raises ValidationError: if the value can't be converted.
+        :return: the dataset instance
+        '''
+        if '/' in value:
+            validate_dataset_path(value)
+            tokens = value.split('/')
+            ds_name = tokens[-1]
+            ds_parent = '/'.join(tokens[:-1])  # type: Optional[str]
+            ds_pool = tokens[0]
+        else:
+            validate_pool_name(value)
+            ds_name = value
+            ds_parent = None
+            ds_pool = value
+
+        if '@' in ds_name:
+            ds_type = DatasetType.SNAPSHOT
+        elif '#' in ds_name:
+            ds_type = DatasetType.BOOKMARK
+        elif os.path.exists(os.path.join('/dev/zvol', value)):
+            ds_type = DatasetType.VOLUME
+        else:
+            ds_type = DatasetType.FILESET
+
+        return Dataset(name=ds_name, parent=ds_parent, type=ds_type, full_path=value, pool=ds_pool)
 
 
 @unique

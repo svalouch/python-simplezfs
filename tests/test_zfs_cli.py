@@ -13,8 +13,15 @@ from simplezfs.zfs_cli import ZFSCli
 
 class TestZFSCli:
 
-    def test_init_noparam(self):
-        instance = ZFSCli()  # noqa: F841
+    @patch('shutil.which')
+    def test_init_noparam(self, which):
+        '''
+        This should result in a ZFSCli instance. It does, however, search a ZFS binary and will fail if there is none.
+        To remedy this, we patch ``shutil.which``.
+        '''
+        which.return_value = '/bin/true'
+        assert ZFSCli()
+        which.assert_called_once_with('zfs')
 
     ########################
 
@@ -60,7 +67,7 @@ class TestZFSCli:
         which.return_value = None
 
         with pytest.raises(OSError) as excinfo:
-            zfs = ZFSCli()
+            ZFSCli()
         assert 'not find executable' in str(excinfo.value)
 
     ##########################################################################
@@ -175,7 +182,7 @@ tank/system/root	14.9G	13.3G	14.9G	/'''
 
     @patch('subprocess.run')
     def test_list_dataset_cmd_error_noparent(self, subproc):
-        def mock_handle_command_error(myself, proc, dataset = None):
+        def mock_handle_command_error(myself, proc, dataset=None):
             assert type(proc) == subprocess.CompletedProcess
             assert proc.returncode == 42
             assert proc.stderr == 'test'

@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest  # type: ignore
 
 from simplezfs.exceptions import ValidationError
+from simplezfs.types import Dataset, DatasetType
 from simplezfs.zfs import ZFS, get_zfs
 from simplezfs.zfs_cli import ZFSCli
 from simplezfs.zfs_native import ZFSNative
@@ -15,7 +16,7 @@ from simplezfs.zfs_native import ZFSNative
 class TestZFS:
 
     def test_init_noparam(self):
-        instance = ZFS()  # noqa: F841
+        assert ZFS()
 
     def test_get_metadata_namespace(self):
         zfs = ZFS(metadata_namespace='pytest')
@@ -332,18 +333,98 @@ class TestZFS:
 
     ##########################################################################
 
+    def test_create_snapshot_call(self):
+        '''
+        Tests the call parameters with which create_snapshot calls create_dataset
+        '''
+        def mock_create_dataset(myself, name, dataset_type=DatasetType.FILESET, properties=None,
+                                metadata_properties=None, mount_helper=None, sparse=False, size=None, recursive=False):
+            assert name == 'test/test@testsnap'
+            assert dataset_type == DatasetType.SNAPSHOT
+            assert properties == {'test': 'test'}
+            assert metadata_properties is None
+            assert mount_helper is None
+            assert sparse is False
+            assert size is None
+            assert recursive is False
+            return Dataset(name='test@testsnap', full_path='test/test@testsnap', pool='test',
+                           parent='test', type=dataset_type)
+
+        with patch.object(ZFS, 'create_dataset', new=mock_create_dataset):
+            zfs = ZFS()
+            ds = zfs.create_snapshot('test/test', 'testsnap', properties=dict(test='test'))
+            assert ds.name == 'test@testsnap'
+
+    def test_create_bookmark_call(self):
+        '''
+        Tests the call parameters with which create_bookmark calls create_dataset
+        '''
+        def mock_create_dataset(myself, name, dataset_type=DatasetType.FILESET, properties=None,
+                                metadata_properties=None, mount_helper=None, sparse=False, size=None, recursive=False):
+            assert name == 'test/test#testmark'
+            assert dataset_type == DatasetType.BOOKMARK
+            assert properties == {'test': 'test'}
+            assert metadata_properties is None
+            assert mount_helper is None
+            assert sparse is False
+            assert size is None
+            assert recursive is False
+            return Dataset(name='test#testmark', full_path='test/test#testmark', pool='test',
+                           parent='test', type=dataset_type)
+
+        with patch.object(ZFS, 'create_dataset', new=mock_create_dataset):
+            zfs = ZFS()
+            ds = zfs.create_bookmark('test/test', 'testmark', properties=dict(test='test'))
+            assert ds.name == 'test#testmark'
+
+    def test_create_fileset_call(self):
+        '''
+        Tests the call parameters with which create_fileset calls create_dataset
+        '''
+        def mock_create_dataset(myself, name, dataset_type=DatasetType.FILESET, properties=None,
+                                metadata_properties=None, mount_helper=None, sparse=False, size=None, recursive=False):
+            assert name == 'test/testfs'
+            assert dataset_type == DatasetType.FILESET
+            assert properties == {'test': 'test', 'mountpoint': '/test/testfs'}
+            assert metadata_properties is None
+            assert mount_helper == 'mounthelper'
+            assert sparse is False
+            assert size is None
+            assert recursive is False
+            return Dataset(name='testfs', full_path='test/testfs', pool='test', parent='test', type=dataset_type)
+
+        with patch.object(ZFS, 'create_dataset', new=mock_create_dataset):
+            zfs = ZFS()
+            ds = zfs.create_fileset('test/testfs', mountpoint='/test/testfs', properties=dict(test='test'),
+                                    mount_helper='mounthelper', recursive=False)
+            assert ds.name == 'testfs'
+
+    def test_create_volume_call(self):
+        '''
+        Tests the call parameters with which create_volume calls create_dataset
+        '''
+        def mock_create_dataset(myself, name, dataset_type=DatasetType.FILESET, properties=None,
+                                metadata_properties=None, mount_helper=None, sparse=False, size=None, recursive=False):
+            assert name == 'test/testvol'
+            assert dataset_type == DatasetType.VOLUME
+            assert properties == {'test': 'test', 'blocksize': str(64 * 1024)}
+            assert metadata_properties is None
+            assert mount_helper is None
+            assert sparse is True
+            assert size == 1024 * 1024 * 1024
+            assert recursive is False
+            return Dataset(name='testvol', full_path='test/testvol', pool='test', parent='test', type=dataset_type)
+
+        with patch.object(ZFS, 'create_dataset', new=mock_create_dataset):
+            zfs = ZFS()
+            ds = zfs.create_volume('test/testvol', size=1024 * 1024 * 1024, sparse=True, blocksize=64 * 1024,
+                                   properties=dict(test='test'), recursive=False)
+            assert ds.name == 'testvol'
+
     def test_notimplemented(self):
         zfs = ZFS()
         with pytest.raises(NotImplementedError):
             zfs.list_datasets()
-        with pytest.raises(NotImplementedError):
-            zfs.create_snapshot('tank', 'test1')
-        with pytest.raises(NotImplementedError):
-            zfs.create_bookmark('tank', 'test2')
-        with pytest.raises(NotImplementedError):
-            zfs.create_fileset('tank/test3')
-        with pytest.raises(NotImplementedError):
-            zfs.create_volume('tank/test4', size=100)
         with pytest.raises(NotImplementedError):
             zfs.create_dataset('tank/test5')
         with pytest.raises(NotImplementedError):
@@ -354,15 +435,22 @@ class TestZFS:
 
 class TestZFSGetZFS:
 
-    def test_get_zfs_default(self):
-        # TODO we might need to mock the shutils.which
+    @patch('shutil.which')
+    def test_get_zfs_default(self, which):
+        which.return_value = '/bin/true'
         zfs = get_zfs()
         assert type(zfs) == ZFSCli
         assert zfs.metadata_namespace is None
+        assert zfs.executable == '/bin/true'
+        which.assert_called_once_with('zfs')
 
-    def test_get_zfs_cli(self):
+    @patch('shutil.which')
+    def test_get_zfs_cli(self, which):
+        which.return_value = '/bin/true'
         zfs = get_zfs('cli')
         assert type(zfs) == ZFSCli
+        assert zfs.executable == '/bin/true'
+        which.assert_called_once_with('zfs')
 
     def test_get_zfs_cli_args(self):
         zfs = get_zfs('cli', metadata_namespace='asdf', zfs_exe='/bin/true')

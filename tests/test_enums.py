@@ -32,6 +32,7 @@ class TestDatasetType:
             DatasetType.from_string(None)
         assert 'only string' in str(excinfo.value)
 
+
 class TestPropertySource:
 
     @pytest.mark.parametrize('string,value', [('default', PropertySource.DEFAULT), ('DeFAULT', PropertySource.DEFAULT), ('inheriteD', PropertySource.INHERITED), ('inherited', PropertySource.INHERITED), ('TEMPORARY', PropertySource.TEMPORARY), ('temporary', PropertySource.TEMPORARY), ('rEcEiVeD', PropertySource.RECEIVED), ('received', PropertySource.RECEIVED), ('None', PropertySource.NONE), ('none', PropertySource.NONE)])

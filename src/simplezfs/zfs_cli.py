@@ -10,7 +10,7 @@ import shutil
 import subprocess
 
 from .exceptions import DatasetNotFound, PropertyNotFound
-from .types import Property, Dataset
+from .types import Dataset, Property, PropertySource
 from .validation import (
     validate_dataset_path,
     validate_pool_name,
@@ -164,7 +164,9 @@ class ZFSCli(ZFS):
         if is_metadata:
             namespace = prop_name.split(':')[0]
 
-        return Property(key=prop_name, value=prop_value, source=prop_source, namespace=namespace)
+        property_source = PropertySource.from_string(prop_source)
+
+        return Property(key=prop_name, value=prop_value, source=property_source, namespace=namespace)
 
     def _get_properties(self, dataset: str, include_metadata: bool = False) -> List[Property]:
         '''
@@ -182,11 +184,12 @@ class ZFSCli(ZFS):
         for line in proc.stdout.split('\n'):
             if line:
                 _, prop_name, prop_value, prop_source = line.strip().split('\t')
+                property_source = PropertySource.from_string(prop_source)
                 if ':' in prop_name:
                     if include_metadata:
                         namespace = prop_name.split(':')[0]
                         prop_name = prop_name.lstrip(f'{namespace}:')
-                        res.append(Property(key=prop_name, value=prop_value, source=prop_source, namespace=namespace))
+                        res.append(Property(key=prop_name, value=prop_value, source=property_source, namespace=namespace))
                 else:
-                    res.append(Property(key=prop_name, value=prop_value, source=prop_source, namespace=None))
+                    res.append(Property(key=prop_name, value=prop_value, source=property_source, namespace=None))
         return res

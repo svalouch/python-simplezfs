@@ -158,6 +158,7 @@ def validate_metadata_property_name(name: str) -> None:
     if not METADATA_PROPERTY_NAME_RE.match(name):
         raise ValidationError('property name does not match')
 
+
 def validate_property_value(value: str) -> None:
     '''
     Validates the value of a property. This works for both native properties, where the driver will tell us if the

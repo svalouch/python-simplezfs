@@ -238,6 +238,7 @@ class TestMetadataPropertyName:
             validate_metadata_property_name('a' * 1024)
         assert 'length >' in str(excinfo.value)
 
+
 class TestPropertyValue:
     '''
     Tests the function ``validate_property_value``.

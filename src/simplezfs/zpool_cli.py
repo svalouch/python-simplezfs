@@ -6,7 +6,7 @@ CLI-based implementation of ZPOOL.
 import logging
 import shutil
 
-from typing import Any, Dict, NamedTuple, Optional
+from typing import Any, Dict, Optional
 from .types import ZPoolHealth
 from .zpool import ZPool
 
@@ -14,7 +14,7 @@ log = logging.getLogger('zfs.zpool_cli')
 
 
 class ZPoolCli(ZPool):
-    
+
     def __init__(self, *, metadata_namespace: Optional[str] = None, zpool_exe: Optional[str] = None, **kwargs) -> None:
         super().__init__(metadata_namespace=metadata_namespace)
         self.find_executable(path=zpool_exe)
@@ -104,7 +104,7 @@ class ZPoolCli(ZPool):
                 # Append the pending elements to the current pool and state and clear them.
                 if vdev_drives:
                     plog.debug(f'have {len(vdev_drives)} vdev_drives, save data')
-                    vdevs['members']= vdev_drives
+                    vdevs['members'] = vdev_drives
                     output[pool_name][state].append(vdevs)
 
                     vdevs = dict(type='none')

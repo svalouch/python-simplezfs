@@ -3,6 +3,7 @@
 ZFS frontend API
 '''
 
+import logging
 from typing import Dict, List, Optional, Union
 
 from .exceptions import (
@@ -21,6 +22,8 @@ from .validation import (
     validate_property_value,
 )
 
+log = logging.getLogger('simplezfs.zfs')
+
 
 class ZFS:
     '''
@@ -38,17 +41,16 @@ class ZFS:
 
     **Properties and Metadata**
 
-    The functions :func:`set_property`, :func:`get_property` and :func:`get_properties` wraps the ZFS get/set
-    functionality. To support so-alled `user properties`, which are called `metadata` in this API, a default namespace
+    The functions :func:`set_property`, :func:`get_property` and :func:`get_properties` wrap the ZFS get/set
+    functionality. To support so-called `user properties`, which are called `metadata` in this API, a default namespace
     can be stored using `metadata_namespace` when instantiating the interface or by calling :func:`set_metadata_namespace`
     at any time.
 
     :note: Not setting a metadata namespace means that one can't set or get metadata properties, unless the overwrite
         parameter for the get/set functions is used.
 
-    :param api: API to use, either ``cli`` for zfs(8) or ``native`` for the `libzfs_core` api.
     :param metadata_namespace: Default namespace
-    :param kwargs: Extra arguments TODO
+    :param kwargs: Extra arguments, ignored
     '''
     def __init__(self, *, metadata_namespace: Optional[str] = None, **kwargs) -> None:
         self.metadata_namespace = metadata_namespace
@@ -249,6 +251,7 @@ class ZFS:
             no default has been set, format the key using ``namespace:key``.
         :return: Info about the newly created dataset.
         :raises ValidationError: If validating the parameters failed.
+        :raises DatasetNotFOund: If the dataset can't be found.
         '''
         return self.create_dataset(
             f'{dataset}@{name}',
@@ -273,10 +276,9 @@ class ZFS:
         :param properties: Dict of native properties to set.
         :param metadata_properties: Dict of native properties to set. For namespaces other than the default (or when
             no default has been set, format the key using ``namespace:key``.
-        :param recursive: Recursively create the parent fileset. Refer to the ZFS documentation about the `-p`
-            parameter for zfs create``.
         :return: Info about the newly created dataset.
         :raises ValidationError: If validating the parameters failed.
+        :raises DatasetNotFound: If the dataset can't be found.
         '''
         return self.create_dataset(
             f'{dataset}#{name}',
@@ -296,8 +298,8 @@ class ZFS:
         recursive: bool = True
     ) -> Dataset:
         '''
-        Create a new fileset. For convenience, a ``mountpoint`` parameter can begiven. If not **None**, it will
-        overwrite any ´mountpoint` value in the ``properties`` dict.
+        Create a new fileset. For convenience, a ``mountpoint`` parameter can be given. If not **None**, it will
+        overwrite any `mountpoint` value in the ``properties`` dict.
 
         :param name: Name of the new fileset (complete path in the ZFS hierarchy).
         :ppram mountpoint: Convenience parameter for setting/overwriting the moutpoint property
@@ -306,9 +308,10 @@ class ZFS:
             no default has been set, format the key using ``namespace:key``.
         :param mount_helper: Mount helper for Linux when not running as root. See :ref:`the_mount_problem` for details.
         :param recursive: Recursively create the parent fileset. Refer to the ZFS documentation about the `-p`
-            parameter for zfs create``.
+            parameter for ``zfs create``.
         :return: Info about the newly created dataset.
         :raises ValidationError: If validating the parameters failed.
+        :raises DatasetNotFOund: If the parent dataset can't be found and ``recursive`` is `False`.
         '''
         if mountpoint is not None:
             if properties is None:
@@ -347,9 +350,10 @@ class ZFS:
         :param metadata_properties: Dict of native properties to set. For namespaces other than the default (or when
             no default has been set, format the key using ``namespace:key``.
         :param recursive: Recursively create the parent fileset. Refer to the ZFS documentation about the `-p`
-            parameter for zfs create``.
+            parameter for ``zfs create``.
         :return: Info about the newly created dataset.
         :raises ValidationError: If validating the parameters failed.
+        :raises DatasetNotFound: If the parent dataset can't be found and ``recursive`` is `False`.
         '''
         if blocksize is not None:
             if properties is None:
@@ -405,7 +409,10 @@ class ZFS:
             should be created.
         :param size: For volumes, specifies the size in bytes.
         :param recursive: Recursively create the parent fileset. Refer to the ZFS documentation about the `-p`
-            parameter for zfs create``. This does not apply to types other than volumes or filesets.
+            parameter for ``zfs create``. This does not apply to types other than volumes or filesets.
+        :raises ValidationError: If validating the parameters failed.
+        :raises DatasetNotFound: If the dataset can't be found (snapshot, bookmark) or the parent dataset can't be
+            found (fileset, volume with ``recursive = False``).
         '''
         if '/' in name:
             validate_dataset_path(name)
@@ -441,38 +448,54 @@ class ZFS:
                 validate_property_value(_metadata_properties[meta_name])
 
         # validate type specifics
-        if dataset_type == DatasetType.VOLUME:
+        if dataset_type in (DatasetType.FILESET, DatasetType.VOLUME):
             if '@' in name or '#' in name:
-                raise ValidationError('Volumes can\'t contain @ or #')
+                raise ValidationError('Volumes/Filesets can\'t contain @ or #')
 
-            if not size:
-                raise ValidationError('Size must be specified for volumes')
-            try:
-                size = int(size)
-            except ValueError as e:
-                raise ValidationError('Size is not an integer') from e
-
-            if size < 1:
-                raise ValidationError('Size is too low')
-
-            if properties and 'blocksize' in properties:
+            if dataset_type == DatasetType.VOLUME:
+                if not size:
+                    raise ValidationError('Size must be specified for volumes')
                 try:
-                    blocksize = int(properties['blocksize'])
-                except ValueError:
-                    raise ValidationError('blocksize must be an integer')
-                if blocksize < 2 or blocksize > 128 * 1024:  # zfs(8) version 0.8.1 lists 128KB as maximum
-                    raise ValidationError('blocksize must be between 2 and 128kb (inclusive)')
-                if not ((blocksize & (blocksize - 1) == 0) and blocksize != 0):
-                    raise ValidationError('blocksize must be a power of two')
+                    size = int(size)
+                except ValueError as e:
+                    raise ValidationError('Size is not an integer') from e
 
-            # TODO recursive
-            #
+                if size < 1:
+                    raise ValidationError('Size is too low')
+
+                if properties and 'blocksize' in properties:
+                    try:
+                        blocksize = int(properties['blocksize'])
+                    except ValueError:
+                        raise ValidationError('blocksize must be an integer')
+                    if blocksize < 2 or blocksize > 128 * 1024:  # zfs(8) version 0.8.1 lists 128KB as maximum
+                        raise ValidationError('blocksize must be between 2 and 128kb (inclusive)')
+                    if not ((blocksize & (blocksize - 1) == 0) and blocksize != 0):
+                        raise ValidationError('blocksize must be a power of two')
+
+            else:
+                if sparse:
+                    log.warning('"sparse" set for fileset, ignoring')
+                    sparse = False
+
+            # this assumes that we're not being called on the root dataset itself!
+            # check if the parent exists
+            parent_ds = '/'.join(name.split('/')[:-1])
+            if not self.dataset_exists(parent_ds) and not recursive:
+                raise DatasetNotFound(f'Parent dataset "{parent_ds}" does not exist and "recursive" is not set')
 
         elif dataset_type == DatasetType.FILESET:
             if '@' in name or '#' in name:
                 raise ValidationError('Filesets can\'t contain @ or #')
 
         elif dataset_type in (DatasetType.SNAPSHOT, DatasetType.BOOKMARK):
+            if recursive:
+                log.warning('"recursive" set for snapshot or bookmark, ignored')
+                recursive = False
+            if sparse:
+                log.warning('"sparse" set for snapshot or bookmark, ignored')
+                sparse = False
+
             symbol = '@' if dataset_type == DatasetType.SNAPSHOT else '#'
 
             if symbol not in name:

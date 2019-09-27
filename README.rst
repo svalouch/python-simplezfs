@@ -15,6 +15,54 @@ Two interface classes make up the API, ``ZFS`` and ``ZPool``, which are wrappers
 
 In this early stage, the native implementation has not been written.
 
+Status
+******
+The table gives a rough overview over features and their implementation state:
+
++-------+------------+-----------------+-----+--------+
+| API   | Topic      | Feature         | CLI | Native |
++=======+============+=================+=====+========+
+| ZFS   | Properties | Read native     | Yes | No     |
+|       |            +-----------------+-----+--------+
+|       |            | Write native    | Yes | No     |
+|       |            +-----------------+-----+--------+
+|       |            | Read metadata   | Yes | No     |
+|       |            +-----------------+-----+--------+
+|       |            | Write metadata  | Yes | No     |
+|       +------------+-----------------+-----+--------+
+|       | Datasets   | List datasets   | Yes | No     |
+|       |            +-----------------+-----+--------+
+|       |            | Check existance | Yes | No     |
+|       |            +-----------------+-----+--------+
+|       |            | Create Filset   | No  | No     |
+|       |            +-----------------+-----+--------+
+|       |            | Create Volume   | No  | No     |
+|       |            +-----------------+-----+--------+
+|       |            | Create Snapshot | No  | No     |
+|       |            +-----------------+-----+--------+
+|       |            | Create Bookmark | No  | No     |
+|       |            +-----------------+-----+--------+
+|       |            | Destroy         | No  | No     |
++-------+------------+-----------------+-----+--------+
+| ZPool | Storage    | List pools      | No  | No     |
+|       |            +-----------------+-----+--------+
+|       |            | Read structure  | Yes | No     |
+|       |            +-----------------+-----+--------+
+|       |            | Replace disk    | No  | No     |
+|       |            +-----------------+-----+--------+
+|       |            | Destroy         | No  | No     |
+|       |            +-----------------+-----+--------+
+|       |            | Create          | No  | No     |
+|       +------------+-----------------+-----+--------+
+|       | Properties | Read native     | No  | No     |
+|       |            +-----------------+-----+--------+
+|       |            | Write native    | No  | No     |
+|       |            +-----------------+-----+--------+
+|       |            | Read metadata   | No  | No     |
+|       |            +-----------------+-----+--------+
+|       |            | Write metadata  | No  | No     |
++-------+------------+-----------------+-----+--------+
+
 Usage
 *****
 

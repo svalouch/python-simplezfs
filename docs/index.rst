@@ -18,6 +18,7 @@ At the time of writing, the ``native``-API has not been implemented.
    quickstart
    security
    guide
+   configuration
    properties_metadata
    testing
    api

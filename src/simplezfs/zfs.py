@@ -4,6 +4,8 @@ ZFS frontend API
 '''
 
 import logging
+import os
+import stat
 from typing import Dict, List, Optional, Union
 
 from .exceptions import (
@@ -52,8 +54,9 @@ class ZFS:
     :param metadata_namespace: Default namespace
     :param kwargs: Extra arguments, ignored
     '''
-    def __init__(self, *, metadata_namespace: Optional[str] = None, **kwargs) -> None:
+    def __init__(self, *, metadata_namespace: Optional[str] = None, mount_helper: Optional[str] = None, **kwargs) -> None:
         self.metadata_namespace = metadata_namespace
+        self.mount_helper = mount_helper
 
     @property
     def metadata_namespace(self) -> Optional[str]:
@@ -70,6 +73,37 @@ class ZFS:
         :todo: validate!
         '''
         self._metadata_namespace = namespace
+
+    @property
+    def mount_helper(self) -> Optional[str]:
+        '''
+        Returns the mount_helper, which may be None if not set.
+        '''
+        return self._mount_helper
+
+    @mount_helper.setter
+    def mount_helper(self, helper: Optional[str]) -> None:
+        '''
+        Sets the mount helper. Some basic checks for existance and executablility are performed, but these are not
+        sufficient for secure operation and are provided to aid the user in configuring the library.
+
+        :note: This method does not follow symlinks.
+
+        :raises FileNotFoundError: if the script can't be found or is not executable.
+        '''
+        if helper is None:
+            log.debug('Mount helper is None')
+            self._mount_helper = None
+        else:
+            candidate = helper.strip()
+
+            mode = os.lstat(candidate).st_mode
+            if not stat.S_ISREG(mode):
+                raise FileNotFoundError('Mount helper must be a file')
+            if not os.access(candidate, os.X_OK):
+                raise FileNotFoundError('Mount helper must be executable')
+            log.debug(f'Setting mount helper to "{candidate}"')
+            self._mount_helper = candidate
 
     def dataset_exists(self, name: str) -> bool:
         '''
@@ -294,7 +328,6 @@ class ZFS:
         mountpoint: str = None,
         properties: Dict[str, str] = None,
         metadata_properties: Dict[str, str] = None,
-        mount_helper: str = None,
         recursive: bool = True
     ) -> Dataset:
         '''
@@ -306,7 +339,6 @@ class ZFS:
         :param properties: Dict of native properties to set.
         :param metadata_properties: Dict of native properties to set. For namespaces other than the default (or when
             no default has been set, format the key using ``namespace:key``.
-        :param mount_helper: Mount helper for Linux when not running as root. See :ref:`the_mount_problem` for details.
         :param recursive: Recursively create the parent fileset. Refer to the ZFS documentation about the `-p`
             parameter for ``zfs create``.
         :return: Info about the newly created dataset.
@@ -324,7 +356,6 @@ class ZFS:
             dataset_type=DatasetType.FILESET,
             properties=properties,
             metadata_properties=metadata_properties,
-            mount_helper=mount_helper
         )
 
     def create_volume(
@@ -376,7 +407,6 @@ class ZFS:
         dataset_type: DatasetType = DatasetType.FILESET,
         properties: Dict[str, str] = None,
         metadata_properties: Dict[str, str] = None,
-        mount_helper: str = None,
         sparse: bool = False,
         size: Optional[int] = None,
         recursive: bool = False
@@ -404,7 +434,6 @@ class ZFS:
         :param properties: A dict containing the properties for this new dataset. These are the native properties.
         :param metadata_properties: The metadata properties to set. To use a different namespace than the default (or
             when no default is set), use the ``namespace:key`` format for the dict keys.
-        :param mount_helper: An executable that has the permission to manipulate the namespace, aka mount the fileset.
         :param sparse: For volumes, specifies whether a sparse (thin provisioned) or normal (thick provisioned) volume
             should be created.
         :param size: For volumes, specifies the size in bytes.
@@ -508,7 +537,7 @@ class ZFS:
 
             # TODO
 
-        return self._create_dataset(name, dataset_type=dataset_type, properties=properties, metadata_properties=_metadata_properties, mount_helper=mount_helper, sparse=sparse, size=size, recursive=recursive)
+        return self._create_dataset(name, dataset_type=dataset_type, properties=properties, metadata_properties=_metadata_properties, sparse=sparse, size=size, recursive=recursive)
 
     def _create_dataset(
         self,
@@ -517,7 +546,6 @@ class ZFS:
         dataset_type: DatasetType,
         properties: Dict[str, str] = None,
         metadata_properties: Dict[str, str] = None,
-        mount_helper: str = None,
         sparse: bool = False,
         size: Optional[int] = None,
         recursive: bool = False,

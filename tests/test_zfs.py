@@ -387,7 +387,7 @@ class TestZFS:
             assert dataset_type == DatasetType.FILESET
             assert properties == {'test': 'test', 'mountpoint': '/test/testfs'}
             assert metadata_properties is None
-            assert mount_helper == 'mounthelper'
+            assert mount_helper is None
             assert sparse is False
             assert size is None
             assert recursive is False
@@ -396,7 +396,7 @@ class TestZFS:
         with patch.object(ZFS, 'create_dataset', new=mock_create_dataset):
             zfs = ZFS()
             ds = zfs.create_fileset('test/testfs', mountpoint='/test/testfs', properties=dict(test='test'),
-                                    mount_helper='mounthelper', recursive=False)
+                                    recursive=False)
             assert ds.name == 'testfs'
 
     def test_create_volume_call(self):

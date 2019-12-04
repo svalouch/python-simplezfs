@@ -1,5 +1,11 @@
 
+import logging
+import os
+import stat
 from typing import Optional
+
+
+log = logging.getLogger('simplezfs.zpool')
 
 
 class ZPool:
@@ -15,8 +21,11 @@ class ZPool:
 
     When creating an instance of this class, select one or the other as the ``api`` argument.
     '''
-    def __init__(self, *, metadata_namespace: Optional[str] = None, **kwargs) -> None:
+    def __init__(self, *, metadata_namespace: Optional[str] = None, pe_helper: Optional[str] = None,
+                 use_pe_helper: bool = False, **kwargs) -> None:
         self.metadata_namespace = metadata_namespace
+        self.pe_helper = pe_helper
+        self.use_pe_helper = use_pe_helper
 
     @property
     def metadata_namespace(self) -> Optional[str]:
@@ -33,6 +42,37 @@ class ZPool:
         :todo: validate!
         '''
         self._metadata_namespace = namespace
+
+    @property
+    def pe_helper(self) -> Optional[str]:
+        '''
+        Returns the pe_helper, which may be None if not set.
+        '''
+        return self._pe_helper
+
+    @pe_helper.setter
+    def pe_helper(self, helper: Optional[str]) -> None:
+        '''
+        Sets the privilege escalation (PE) helper. Some basic checks for existance and executability are performed,
+        but these are not sufficient for secure operation and are provided to aid the user in configuring the library.
+
+        :note: This method does not follow symlinks.
+
+        :raises FileNotFoundError: if the helper can't be found or is not executable.
+        '''
+        if helper is None:
+            log.debug('PE helper is None')
+            self._pe_helper = None
+        else:
+            candidate = helper.strip()
+
+            mode = os.lstat(candidate).st_mode
+            if not stat.S_ISREG(mode):
+                raise FileNotFoundError('PE helper must be a file')
+            if not os.access(candidate, os.X_OK):
+                raise FileNotFoundError('PE helper must be executable')
+            log.debug(f'Setting privilege escalation helper to "{candidate}"')
+            self._pe_helper = candidate
 
 
 def get_zpool(api: str = 'cli', metadata_namespace: Optional[str] = None, **kwargs) -> ZPool:

@@ -28,7 +28,8 @@ class ZFSCli(ZFS):
 
     If ``zfs_exe`` is supplied, it is assumed that it points to the path of the ``zfs(8)`` executable.
     '''
-    def __init__(self, *, metadata_namespace: Optional[str] = None, zfs_exe: Optional[str] = None, **kwargs) -> None:
+    def __init__(self, *, metadata_namespace: Optional[str] = None, pe_helper: Optional[str] = None,
+                 use_pe_helper: bool = False, zfs_exe: Optional[str] = None, **kwargs) -> None:
         super().__init__(metadata_namespace=metadata_namespace)
         self.find_executable(path=zfs_exe)
 

@@ -18,7 +18,8 @@ class ZFSNative(ZFS):
     :class:`~zfs.zfs.ZFS`. It is recommended to use :func:`~zfs.zfs.get_zfs` to obtain an instance, using ``native``
     as api.
     '''
-    def __init__(self, *, metadata_namespace: Optional[str] = None, **kwargs) -> None:
+    def __init__(self, *, metadata_namespace: Optional[str] = None, pe_helper: Optional[str] = None,
+                 use_pe_helper: bool = False, **kwargs) -> None:
         super().__init__(metadata_namespace=metadata_namespace)
 
     def set_property(self, dataset: str, key: str, value: str, *, metadata: bool = False, overwrite_metadata_namespace: Optional[str] = None) -> None:

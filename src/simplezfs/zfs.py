@@ -52,11 +52,15 @@ class ZFS:
         parameter for the get/set functions is used.
 
     :param metadata_namespace: Default namespace
+    :param pe_helper: Privilege escalation (PE) helper to use for actions that require elevated privileges (root).
+    :param use_pe_helper: Whether to use the PE helper for creating and (u)mounting.#
     :param kwargs: Extra arguments, ignored
     '''
-    def __init__(self, *, metadata_namespace: Optional[str] = None, mount_helper: Optional[str] = None, **kwargs) -> None:
+    def __init__(self, *, metadata_namespace: Optional[str] = None, pe_helper: Optional[str] = None,
+                 use_pe_helper: bool = False, **kwargs) -> None:
         self.metadata_namespace = metadata_namespace
-        self.mount_helper = mount_helper
+        self.pe_helper = pe_helper
+        self.use_pe_helper = use_pe_helper
 
     @property
     def metadata_namespace(self) -> Optional[str]:
@@ -75,35 +79,49 @@ class ZFS:
         self._metadata_namespace = namespace
 
     @property
-    def mount_helper(self) -> Optional[str]:
+    def pe_helper(self) -> Optional[str]:
         '''
-        Returns the mount_helper, which may be None if not set.
+        Returns the pe_helper, which may be None if not set.
         '''
-        return self._mount_helper
+        return self._pe_helper
 
-    @mount_helper.setter
-    def mount_helper(self, helper: Optional[str]) -> None:
+    @pe_helper.setter
+    def pe_helper(self, helper: Optional[str]) -> None:
         '''
-        Sets the mount helper. Some basic checks for existance and executablility are performed, but these are not
-        sufficient for secure operation and are provided to aid the user in configuring the library.
+        Sets the privilege escalation (PE) helper. Some basic checks for existance and executablility are performed,
+        but these are not sufficient for secure operation and are provided to aid the user in configuring the library.
 
         :note: This method does not follow symlinks.
 
         :raises FileNotFoundError: if the script can't be found or is not executable.
         '''
         if helper is None:
-            log.debug('Mount helper is None')
-            self._mount_helper = None
+            log.debug('PE helper is None')
+            self._pe_helper = None
         else:
             candidate = helper.strip()
 
             mode = os.lstat(candidate).st_mode
             if not stat.S_ISREG(mode):
-                raise FileNotFoundError('Mount helper must be a file')
+                raise FileNotFoundError('PE helper must be a file')
             if not os.access(candidate, os.X_OK):
-                raise FileNotFoundError('Mount helper must be executable')
-            log.debug(f'Setting mount helper to "{candidate}"')
-            self._mount_helper = candidate
+                raise FileNotFoundError('PE helper must be executable')
+            log.debug(f'Setting privilege escalation helper to "{candidate}"')
+            self._pe_helper = candidate
+
+    @property
+    def use_pe_helper(self) -> bool:
+        '''
+        Returns whether the privilege escalation (PE) helper should be used.
+        '''
+        return self._use_pe_helper
+
+    @use_pe_helper.setter
+    def use_pe_helper(self, use: bool) -> None:
+        '''
+        Enable or disable using the privilege escalation (PE) helper.
+        '''
+        self._use_pe_helper = use
 
     def dataset_exists(self, name: str) -> bool:
         '''
@@ -129,6 +147,20 @@ class ZFS:
         :return: The list of datasets.
         '''
         raise NotImplementedError(f'{self} has not implemented this function')
+
+    def set_mountpoint(self, fileset: str, mountpoint: str, *, use_pe_helper: bool = False) -> None:
+        '''
+        Sets or changes the mountpoint property of a fileset. While this can be achieved using the generic function
+        :func:`~ZFS.set_property`, it allows for using the privilege escalation (PE) helper if so desired.
+
+        :param fileset: The fileset to modify.
+        :param mountpoint: The new value for the ``mountpoint`` property.
+        :param use_pe_helper: Overwrite the default for using the privilege escalation (PE) helper for this task.
+        :raises DatasetNotFound: if the fileset could not be found.
+        :raises ValidationError: if validating the parameters failed.
+        '''
+        real_use_pe_helper = use_pe_helper if use_pe_helper is not None else self.use_pe_helper
+        raise NotImplementedError(f'not implemented yet')
 
     def set_property(self, dataset: str, key: str, value: str, *, metadata: bool = False, overwrite_metadata_namespace: Optional[str] = None) -> None:
         '''

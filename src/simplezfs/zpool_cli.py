@@ -15,8 +15,9 @@ log = logging.getLogger('zfs.zpool_cli')
 
 class ZPoolCli(ZPool):
 
-    def __init__(self, *, metadata_namespace: Optional[str] = None, zpool_exe: Optional[str] = None, **kwargs) -> None:
-        super().__init__(metadata_namespace=metadata_namespace)
+    def __init__(self, *, metadata_namespace: Optional[str] = None, pe_helper: Optional[str] = None,
+                 use_pe_helper: bool = False, zpool_exe: Optional[str] = None, **kwargs) -> None:
+        super().__init__(metadata_namespace=metadata_namespace, pe_helper=pe_helper, use_pe_helper=use_pe_helper)
         self.find_executable(path=zpool_exe)
 
     def find_executable(self, path: str = None) -> None:

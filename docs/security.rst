@@ -24,13 +24,40 @@ The mount problem
 *****************
 On Linux, only root is allowed to manipulate the global namespace. This means that no amount of ``zfs allow`` will
 allow any other user to mount a fileset. They can be created with the ``mountpoint`` property set, but can't be
-mounted. One workaround is to specify ``legacy``, and usr ``/etc/fstab`` to mount it, the other is to install and use
-a special privilege escalation helper.
+mounted. One workaround is to specify ``legacy``, and using ``/etc/fstab`` to mount it, the other is to install and use
+a special privilege escalation (PE) helper.
 
-There are two places where it is needed to have **root** privileges: Setting or changing the ``mountpoint`` property
-of a fileset. For this, a helper program is provided as an example. It is intended to be edited by the administrator
-before use.
+Elevated privileges are required for the following tasks:
 
-Installed **setuid root**, it allows the caller to mount a fileset if it is below a hardcoded (by the administrator
-of the system) dataset and targets a hardcoded subtree of the local filesystem hierarchy. The path to that helper has
-to be passed to the create function for filesets.
+* ``mount`` or ``unmount`` a fileset without the use of ``/etc/fstab`` and ``legacy`` mountpoints
+* set or change the ``mountpoint`` property, which results in changing the mountpoint
+* ZPool ``import`` or ``export``
+
+Whether the helper is installed **setuid root** or uses **sudo** internally or any other way is up to the user. An
+example helper script is provided that will allow creating and moving filesets in a subtree of the ZFS hierarchy and
+local filesystem hierarchy.
+
+.. note::
+
+    The helper is provided as an example, use at your own risk.
+
+PE Helper protocol
+******************
+The PE helper will be called with different sets of parameters, depending on the action to perform. Its exit code
+communicates the basic problem or success and output is captured and fed to the logger.
+
+Calling convention
+==================
+The `first` parameter denotes the ``action``, followed by one or two parameters:
+
+* ``create`` is used when creating a fileset. It receives the ``fileset`` name, and the ``mountpoint``. The PE helper
+  should then issue the equivalent to ``zfs create -o mountpoint=$mountpoint $fileset``.
+* ``set_mountpoint`` sets or changes the mountpoint property of filesets, which usually results in remounting to the
+  new location. It receives the ``fileset`` name and the new ``mountpoint``.
+* ``import``/``export`` imports or exports a pool. It takes a ``pool`` name as parameter.
+
+Reporting
+=========
+If all went well, the helper shall return ``0`` as exit code. Otherwise, the exit code denotes the nature of the
+problem. Text output to stdout/stderr is captured and logged as info (if the exit code is ``0``) or error (otherwise).
+The logger is either called ``simplezfs.zfs.pe_helper`` or ``simplezfs.zpool.pe_helper``, depending on the usage.

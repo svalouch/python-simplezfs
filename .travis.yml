@@ -32,3 +32,6 @@ matrix:
           - pytest --cov=simplezfs --cov-report=term-missing ${@}
           - mypy src/simplezfs
           - flake8
+      - language: shell
+        script:
+          - shellcheck scripts/pe_helper.sh.example

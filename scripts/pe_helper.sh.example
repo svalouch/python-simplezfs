@@ -1,0 +1,283 @@
+#!/bin/bash
+#
+# Privilege Escalation Helper (PE Helper) example - Fileset manipulation
+#
+# The purpose of this script is to aid in creating and manipulating filesets by using elevated privileges (root) in a
+# controlled way. It works around the problem that - on Linux - only root may manipulate the global filesystem
+# namespace. That means that only root may mount and umount filesystems, even if a less privileged user has been
+# granted permission to mount using "zfs allow".
+#
+#############
+# This script is an example, and by no means complete or guaranteed to be secure. Use at your own risk!
+# There *are* race conditions, always make sure to only pass clean arguments to the script and run only one instance.
+#############
+#
+# The theory of operation for this script is that it allows the caller to create and delete filesets with mountpoints
+# and to manipulate the mountpoint property of existing filesets within certain restrictions:
+# * The fileset be a (grand...)child of a configured parent dataset, i.e. the caller can only manipulate filesets in
+#   a subtree of the hierarchy.
+# * The mountpoint must be below a certain filesystem node, i.e. the caller can mount or unmount filesets below a
+#   configured parent directory.
+#
+# Note that it is not currently possible to use non-ascii characters in the path or fileset name
+#
+####################
+# Calling convention
+#
+# The first argument specifies the action such as "create" for creating a fileset. Depending on the action, one or
+# more arguments are required, most take two:
+#
+# * "create" has 2 args:         fileset name and mountpoint
+# * "destroy" has 1 arg:         fileset name
+# * "set_mountpoint" has 2 args: fileset name and new mountpoint
+#
+# The exit code is the primary way to communicate back if something happened. Additionally, messages are written to
+# stdout or stderr to provide more insight.
+#
+# * 0: Everything went well
+# * 1: Parameter or general error (such as commands not found)
+# * 2: Parent directory does not exist or is not a directory
+# * 3: Parent dataset does not exist
+# * 4: Target fileset is not a (grand)child of parent dataset or parent does not exist
+# * 5: Mountpoint is not inside the parent directory or otherwise invalid
+# * 6: Calling the zfs utility failed
+#
+###############
+# Configuration
+#
+# The section following this comment block is for configuration. The following can be configured:
+#
+# * "PARENT_DATASET" is a string pointing to the dataset below which the caller can create and destroy filesets.
+# * "PARENT_DIRECTORY" is a string pointing to the directory below which filesets can be mounted/unmounted by the
+#   caller.
+# * "ZFS_BIN": full path to the zfs(8) utility.
+# * "USE_SUDO": Whether to use sudo for the manipulation commands. The lookups will be done without sudo regardless of
+#   this setting.
+#
+# It is not required for the parent dataset to be mounted at or below the parent directory, but it must exist prior to
+# calling the helper. The parent directory must also exist.
+#
+
+PARENT_DATASET=rpool/test
+PARENT_DIRECTORY=/data
+ZFS_BIN=/usr/bin/zfs
+USE_SUDO=false
+
+######################################################################################################################
+# End of configuration section - Do NOT modify anything below this line
+######################################################################################################################
+
+if [ ! -x $ZFS_BIN ]
+then
+    echo "'zfs' binary can't be executed"
+    exit 1
+fi
+
+# check the parameters
+if [ $# -lt 1 ]
+then
+    echo "not enough parameters"
+    exit 1
+fi
+
+case $1 in
+    create|set_mountpoint)
+        if [ $# -ne 3 ]
+        then
+            echo "incorrect number of arguments, expected 3: ${1} <fileset> <mountpoint>"
+            exit 1
+        fi
+        ;;
+    destroy)
+        if [ $# -ne 2 ]
+        then
+            echo "incorrect number of arguments, expected 2: ${1} <fileset>"
+            exit 1
+        fi
+        ;;
+    *)
+        echo "unknown command, chose from: create | destroy | set_mountpoint"
+        exit 1
+        ;;
+esac
+
+# Execute the given parameters with ZFS, optionally using sudo if USE_SUDO is true.
+function exec_zfs()
+{
+    params=$*
+    # Simple and not at all sufficient check to limit the commands that can be run
+    # It also limits the characters allowed as names to the ASCII set, so unicode directory names are not possible
+    if [[ $params =~ [a-zA-Z0-9=_\ /-] ]]
+    then
+        if [[ $USE_SUDO == true ]]
+        then
+            echo "Issuing sudo command: sudo ${ZFS_BIN} ${params}"
+            # shellcheck disable=SC2086
+            sudo $ZFS_BIN $params
+        else
+            echo "Issuing command: ${ZFS_BIN} ${params}"
+            # shellcheck disable=SC2086
+            $ZFS_BIN $params
+        fi
+    else
+        echo "Command string contains disallowed characters"
+        exit 1
+    fi
+}
+
+# Test parent directory
+######
+# test that the parent directory exists
+if ! readlink -qe ${PARENT_DIRECTORY} > /dev/null
+then
+    echo "Parent directory ${PARENT_DIRECTORY} does not exist."
+    exit 2
+fi
+
+# and is a directory
+if [ ! -d ${PARENT_DIRECTORY} ]
+then
+    echo "Parent directory ${PARENT_DIRECTORY} is not a directory."
+    exit 2
+fi
+
+# Test parent dataset
+######
+# Test that the parent dataset exists
+if ! $ZFS_BIN list -d 2 "${PARENT_DATASET}" -o name -H > /dev/null
+then
+    echo "Parent dataset ${PARENT_DATASET} does not exist."
+    exit 3
+fi
+
+fileset=$2
+
+# Check that the fileset is below the PARENT_DATASET. It does not need to exist.
+pds_tmp="${PARENT_DATASET}/"
+if [[ $fileset != $pds_tmp* ]]
+then
+    echo "Fileset does not appear to be a child of parent dataset ${PARENT_DATASET}"
+    exit 4
+fi
+
+# Branch off for the different actions. At this point, we know that the parent dataset exists and the fileset argument
+# points to a path inside the parent dataset.
+if [[ $1 == 'create' ]]
+then
+    echo create
+    mountpoint=${3%/}
+
+    # make sure the direct parent of our soon-to-be fileset exists
+    new_fileset_parent=$(dirname "$fileset")
+    if ! $ZFS_BIN list -d 2 "$new_fileset_parent" -o name -H > /dev/null
+    then
+        echo "Parent dataset of new fileset does not exist"
+        exit 4
+    fi
+
+    # resolve the mountpoint through symlinks, then try to make sure it is below PARENT_DIRECTORY
+    if ! mp_dir=$(readlink -qf "$mountpoint")
+    then
+        echo "Parent of mountpoint does not exist."
+        exit 5
+    fi
+
+    if [[ $mp_dir != $PARENT_DIRECTORY* ]]
+    then
+        echo "Mountpoint does not appear to be located somewhere below ${PARENT_DIRECTORY}"
+        exit 5
+    fi
+
+    # create the fileset
+    exec_zfs create -o "mountpoint=${mountpoint}" "$fileset"
+
+elif [[ $1 == 'set_mountpoint' ]]
+then
+    echo set_mountpoint
+
+    # check that the fileset exists
+    if ! $ZFS_BIN list -d 2 "$fileset" -o name -H > /dev/null
+    then
+        echo "Fileset does not exist"
+        exit 4
+    fi
+
+    # get the type and bail out if it is not a "filesystem"
+    if [[ $($ZFS_BIN get -H -o value type "$fileset") != 'filesystem' ]]
+    then
+        echo "Fileset parameter does not point to a filesystem"
+        exit 5
+    fi
+
+    # get the current mountpoint
+    if ! mp=$($ZFS_BIN get -H -o value mountpoint "$fileset")
+    then
+        echo "The old value of the mountpoint property can't be retrieved"
+        exit 5
+    fi
+
+    # check that the mountpoint resides below the PARENT_DIRECTORY
+    if ! mp_dir=$(readlink -qe "$mp")
+    then
+        echo "The filesets mountpoint does not exist"
+        exit 5
+    fi
+
+    if [[ $mp_dir != $PARENT_DIRECTORY* ]]
+    then
+        echo "The current mountpoint is outside of ${PARENT_DIRECTORY}"
+        exit 5
+    fi
+
+    # check that the parent directory of the new mountpoint exists
+    if ! mp_dir_new=$(readlink -qf "$mountpoint")
+    then
+        echo "The parent of the new mountpoint does not exist"
+        exit 5
+    fi
+
+    # check that the new mountpoint is below the PARENT_DIRECTORY, too
+    if [[ $mp_dir_new != $PARENT_DIRECTORY* ]]
+    then
+        echo "The new mountpoint is outside of $PARENT_DIRECTORY"
+        exit 5
+    fi
+
+    # change the mountpoint property
+    exec_zfs set "mountpoint=${mountpoint}" "$fileset"
+
+elif [[ $1 == 'destroy' ]]
+then
+    echo destroy
+
+    if ! $ZFS_BIN list -d 2 "$fileset" -o name -H > /dev/null
+    then
+        echo "Fileset does not exist"
+        exit 4
+    fi
+
+    # get the mountpoint value
+    mp=$($ZFS_BIN get -H -o value mountpoint "$fileset")
+
+    # check that the mountpoint resides below the PARENT_DIRECTORY
+    if ! mp_dir=$(readlink -qe "$mp")
+    then
+        echo "Mountpoint does not exist"
+        exit 5
+    fi
+
+    if [[ $mp_dir != $PARENT_DIRECTORY* ]]
+    then
+        echo "Mountpoint appears to be outside of $PARENT_DIRECTORY"
+        exit 5
+    fi
+
+    # remove the fileset
+    exec_zfs destroy "$fileset"
+
+else
+    echo "Unknown action, this should not be reachable"
+    exit 1
+fi
+
+exit 0

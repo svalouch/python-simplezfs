@@ -21,7 +21,7 @@ setup(
     python_requires='>=3.6',
 
     install_requires=[
-        'pydantic<1',
+        'pydantic>=0.32.2',
     ],
 
     extras_require={

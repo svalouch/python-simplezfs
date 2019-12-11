@@ -159,7 +159,7 @@ class ZFS:
         :raises DatasetNotFound: if the fileset could not be found.
         :raises ValidationError: if validating the parameters failed.
         '''
-        real_use_pe_helper = use_pe_helper if use_pe_helper is not None else self.use_pe_helper
+        # real_use_pe_helper = use_pe_helper if use_pe_helper is not None else self.use_pe_helper
         raise NotImplementedError(f'not implemented yet')
 
     def set_property(self, dataset: str, key: str, value: str, *, metadata: bool = False, overwrite_metadata_namespace: Optional[str] = None) -> None:

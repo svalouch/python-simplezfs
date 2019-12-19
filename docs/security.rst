@@ -61,3 +61,31 @@ Reporting
 If all went well, the helper shall return ``0`` as exit code. Otherwise, the exit code denotes the nature of the
 problem. Text output to stdout/stderr is captured and logged as info (if the exit code is ``0``) or error (otherwise).
 The logger is either called ``simplezfs.zfs.pe_helper`` or ``simplezfs.zpool.pe_helper``, depending on the usage.
+
+When to use
+===========
+The helper is generally only required on Linux, where, according to the ``zfs(8)`` manpage on ``zfs allow``, the
+``mount(8)`` "command restricts modifications of the global namespace to the root user".
+
+The permissions that require ``root`` are:
+
+* ``mount``
+* ``unmount``
+* ``canmount``
+* ``rename``
+* ``share``
+
+As some commands manipulate the namespace, the following actions require root permission:
+
+* ``clone``
+* ``create`` (:func:`~simplezfs.ZFS.create_fileset` because it mounts it right away)
+* ``destroy`` (:func:`~simplezfs.ZFS.destroy_dataset`)
+* ``mount``
+* ``promote``
+* ``receive``
+* ``rename``
+* ``rollback``
+* ``share``
+* ``snapshot`` (:func:`~simplezfs.ZFS.create_snapshot`)
+
+Additionally, changing the ``mountpoint`` property on filesets (:func:`~simplezfs.ZFS.set_mountpoint`)

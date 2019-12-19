@@ -3,6 +3,8 @@
 Exceptions
 '''
 
+from typing import Optional
+
 
 class ZFSException(Exception):
     '''
@@ -46,3 +48,20 @@ class ValidationError(ZFSException):
     Indicates that a value failed validation.
     '''
     pass
+
+
+class PEHelperException(ZFSException):
+    '''
+    Indicates a problem when running the PE helper.
+    '''
+    def __init__(self, message: str, returncode: Optional[int], stdout: Optional[str] = None, stderr: Optional[str] = None) -> None:
+        '''
+        :param message: The message to carry.
+        :param returncode: The programs return code.
+        :param stdout: The programs standard output, if any.
+        :param stderr: The programs standard error, if any.
+        '''
+        super().__init__(message)
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr

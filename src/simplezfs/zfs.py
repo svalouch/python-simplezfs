@@ -6,10 +6,12 @@ ZFS frontend API
 import logging
 import os
 import stat
+import subprocess
 from typing import Dict, List, Optional, Union
 
 from .exceptions import (
     DatasetNotFound,
+    PEHelperException,
     PermissionError,
     PoolNotFound,
     PropertyNotFound,
@@ -46,14 +48,18 @@ class ZFS:
     The functions :func:`set_property`, :func:`get_property` and :func:`get_properties` wrap the ZFS get/set
     functionality. To support so-called `user properties`, which are called `metadata` in this API, a default namespace
     can be stored using `metadata_namespace` when instantiating the interface or by calling
-    :func:`set_metadata_namespace`  at any time.
+    :func:`set_metadata_namespace` at any time.
 
     :note: Not setting a metadata namespace means that one can't set or get metadata properties, unless the overwrite
         parameter for the get/set functions is used.
 
+    The parameter ``use_pe_helper`` is used to control whether the ``pe_helper`` executable will be used when
+    performing actions that require elevated permissions. It can be changed at anytime using the ``use_pe_helper``
+    property.
+
     :param metadata_namespace: Default namespace
     :param pe_helper: Privilege escalation (PE) helper to use for actions that require elevated privileges (root).
-    :param use_pe_helper: Whether to use the PE helper for creating and (u)mounting.#
+    :param use_pe_helper: Whether to use the PE helper for creating and (u)mounting.
     :param kwargs: Extra arguments, ignored
     '''
     def __init__(self, *, metadata_namespace: Optional[str] = None, pe_helper: Optional[str] = None,
@@ -163,7 +169,7 @@ class ZFS:
         '''
         raise NotImplementedError(f'{self} has not implemented this function')
 
-    def set_mountpoint(self, fileset: str, mountpoint: str, *, use_pe_helper: bool = False) -> None:
+    def set_mountpoint(self, fileset: str, mountpoint: str, *, use_pe_helper: Optional[bool] = None) -> None:
         '''
         Sets or changes the mountpoint property of a fileset. While this can be achieved using the generic function
         :func:`~ZFS.set_property`, it allows for using the privilege escalation (PE) helper if so desired.
@@ -171,6 +177,7 @@ class ZFS:
         :param fileset: The fileset to modify.
         :param mountpoint: The new value for the ``mountpoint`` property.
         :param use_pe_helper: Overwrite the default for using the privilege escalation (PE) helper for this task.
+            ``None`` (default) uses the default setting.
         :raises DatasetNotFound: if the fileset could not be found.
         :raises ValidationError: if validating the parameters failed.
         '''
@@ -183,6 +190,11 @@ class ZFS:
         Sets the ``value`` of the native property ``key``. By default, only native properties can be set. If
         ``metadata`` is set to **True**, the default metadata namespace is prepended or the one in
         ``overwrite_metadata_namespace`` is used if set to a valid string.
+
+        .. note::
+
+           Use :func:`set_mountpoint` to change the ``mountpoint`` property if your setup requires the use of elevated
+           permissions (such as Linux).
 
         Example:
 
@@ -327,6 +339,10 @@ class ZFS:
         '''
         Create a new snapshot from an existing dataset.
 
+        .. warning::
+
+           This action requires the ``pe_helper`` on Linux when not running as `root`.
+
         :param dataset: The dataset to snapshot.
         :param name: Name of the snapshot (the part after the ``@``)
         :param properties: Dict of native properties to set.
@@ -367,6 +383,10 @@ class ZFS:
         '''
         Create a new fileset. For convenience, a ``mountpoint`` parameter can be given. If not **None**, it will
         overwrite any `mountpoint` value in the ``properties`` dict.
+
+        .. warning::
+
+           This action requires the ``pe_helper`` on Linux when not running as `root`.
 
         :param name: Name of the new fileset (complete path in the ZFS hierarchy).
         :ppram mountpoint: Convenience parameter for setting/overwriting the moutpoint property
@@ -589,6 +609,23 @@ class ZFS:
         size: Optional[int] = None,
         recursive: bool = False,
     ) -> Dataset:
+        '''
+        Actual implementation of :func:`create_dataset`.
+
+        :param name: The name of the new dataset. This includes the full path, e.g. ``tank/data/newdataset``.
+        :param dataset_type: Indicates the type of the dataset to be created.
+        :param properties: A dict containing the properties for this new dataset. These are the native properties.
+        :param metadata_properties: The metadata properties to set. To use a different namespace than the default (or
+            when no default is set), use the ``namespace:key`` format for the dict keys.
+        :param sparse: For volumes, specifies whether a sparse (thin provisioned) or normal (thick provisioned) volume
+            should be created.
+        :param size: For volumes, specifies the size in bytes.
+        t:param recursive: Recursively create the parent fileset. Refer to the ZFS documentation about the `-p`
+            parameter for ``zfs create``. This does not apply to types other than volumes or filesets.
+        :raises ValidationError: If validating the parameters failed.
+        :raises DatasetNotFound: If the dataset can't be found (snapshot, bookmark) or the parent dataset can't be
+            found (fileset, volume with ``recursive = False``).
+        '''
         raise NotImplementedError(f'{self} has not implemented this function')
 
     def destroy_dataset(self, name: str, *, recursive: bool = False) -> None:
@@ -609,6 +646,101 @@ class ZFS:
         :param name: Name of the dataset to remove.
         '''
         raise NotImplementedError(f'{self} has not implemented this function')
+
+    def handle_pe_error(self, args: List[str], proc: subprocess.CompletedProcess) -> None:
+        '''
+        Handles errors from the Privilege Escalation (PE) helper. If the returncode is ß, nothing happens, otherwise
+        an exception is thrown.
+
+        :param args: Arguments passed to the helper (without the helper executable itself).
+        :param proc: The result of subprocess.run
+        :raises PEHelperException: In case of error.
+        '''
+        log = logging.getLogger('simplezfs.zfs.pe_helper')
+        if proc.returncode == 0:
+            log.info(f'PE helper action {args[0]} was successful')
+            if len(proc.stdout) > 0:
+                log.debug(f'PE stdout: {proc.stdout}')
+            if len(proc.stderr) > 0:
+                log.warning(f'PE stderr: {proc.stderr}')
+        else:
+            if proc.returncode == 1:
+                log.error('General error in PE executable: Wrong parameters or configuration problem')
+                msg = 'General error'
+            elif proc.returncode == 2:
+                msg = 'Parent directory does not exist or is not a directory'
+                log.error(msg)
+            elif proc.returncode == 3:
+                msg = 'Parent dataset does not exist'
+                log.error(msg)
+            elif proc.returncode == 4:
+                msg = 'Target fileset is not a (grand)child of parent or parent does not exist'
+                log.error(msg)
+            elif proc.returncode == 5:
+                msg = 'Mountpoint is not inside the parent directory or otherwise invalid'
+                log.error(msg)
+            elif proc.returncode == 6:
+                msg = 'Calling the zfs utility failed'
+                log.error(msg)
+            else:
+                msg = f'Unknown / Unhandled error with returncode {proc.returncode}'
+                log.error(msg)
+
+            # gather output
+            if len(proc.stdout) > 0:
+                log.warning(f'PE stdout: {proc.stdout}')
+            if len(proc.stderr) > 0:
+                log.warning(f'PE stderr: {proc.stderr}')
+
+            raise PEHelperException(msg, returncode=proc.returncode, stdout=proc.stdout, stderr=proc.stderr)
+
+    def _execute_pe_helper(self, action: str, name: str, mountpoint: Optional[str] = None):
+        '''
+        Runs the specified action through the PE helper.
+
+        :param action: The action to perform. Valid are: "create", "destroy", "set_mountpoint".
+        :param name: The name of the dataset to operate on.
+        :param mountpoint: The mountpoint for create/set_mountpoint actions.
+        :raises ValidationError: If the parameters are invalid.
+        :raises PEHelperException: If the PE helper reported an error.
+        '''
+        if not self._pe_helper:
+            raise ValidationError('PE Helper is not set')
+        if action not in ('create', 'destroy', 'set_mountpoint'):
+            raise ValidationError(f'Invalid action')
+        validate_dataset_path(name)
+
+        if action == 'create':
+            if mountpoint is None:
+                raise ValidationError(f'Mountpoint has to be set for action "{action}"')
+            # TODO validate filesystem path
+            cmd = [self._pe_helper, 'create', name, mountpoint]
+        elif action == 'destroy':
+            cmd = [self._pe_helper, 'destroy', name]
+        elif action == 'set_mountpoint':
+            if mountpoint is None:
+                raise ValidationError(f'Mountpoint has to be set for action "{action}"')
+            # TODO validate filesystem path
+            cmd = [self._pe_helper, 'set_mountpoint', name, mountpoint]
+        else:
+            raise ValidationError('Invalid action')
+
+        print(f'PE Helper: {cmd}')
+
+        log = logging.getLogger('simplezfs.zfs.pe_helper')
+        log.debug(f'About to run the following command: {cmd}')
+
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
+        if proc.returncode != 0 or len(proc.stderr) > 0:
+            log.error(f'PE Helper exit code {proc.returncode}')
+            log.error(f'Stdout: {proc.stdout}')
+            log.error(f'Stderr: {proc.stderr}')
+            raise PEHelperException('PE Helper execution error', proc.returncode, proc.stdout, proc.stderr)
+        else:
+            log.info(f'PE Helper successful')
+            log.debug(f'Return code: {proc.returncode}')
+            log.debug(f'Stdout: {proc.stdout}')
+            log.debug(f'Stderr: {proc.stderr}')
 
 
 def get_zfs(api: str = 'cli', metadata_namespace: Optional[str] = None, **kwargs) -> ZFS:

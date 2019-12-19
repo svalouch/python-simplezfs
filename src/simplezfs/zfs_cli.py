@@ -3,14 +3,14 @@
 CLI-based implementation.
 '''
 
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 import logging
 import os
 import shutil
 import subprocess
 
-from .exceptions import DatasetNotFound, PropertyNotFound
-from .types import Dataset, Property, PropertySource
+from .exceptions import DatasetNotFound, PEHelperException, PropertyNotFound, ValidationError
+from .types import Dataset, DatasetType, Property, PropertySource
 from .validation import (
     validate_dataset_path,
     validate_pool_name,
@@ -120,6 +120,28 @@ class ZFSCli(ZFS):
             res.append(Dataset.from_string(name.strip()))
         return res
 
+    def set_mountpoint(self, fileset: str, mountpoint: str, *, use_pe_helper: Optional[bool] = False) -> None:
+        real_use_pe_helper = use_pe_helper if use_pe_helper is not None else self.use_pe_helper
+        ds_type = self.get_property(fileset, 'type')
+        if ds_type != 'filesystem':
+            raise ValidationError('Given fileset is not a filesystem, can\'t set mountpoint')
+
+        if not real_use_pe_helper:
+            self.set_property(fileset, 'mountpoint', mountpoint)
+        else:
+            if not self.pe_helper:
+                raise ValidationError('PE helper should be used, but is not defined')
+
+            args = [self.pe_helper, 'set_mountpoint', fileset, mountpoint]
+            log.debug(f'set_mountpoint: executing {args}')
+            proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
+            log.debug(f'set_mountpoint returncode: {proc.returncode}')
+            log.debug(f'set_mountpoint stdout: {proc.stdout}')
+            log.debug(f'set_mountpoint stderr: {proc.stderr}')
+            # TODO log output
+            if proc.returncode != 0 or len(proc.stderr) > 0:
+                self.handle_command_error(proc, fileset)
+
     def handle_command_error(self, proc: subprocess.CompletedProcess, dataset: str = None) -> None:
         '''
         Handles errors that occured while running a command.
@@ -140,6 +162,8 @@ class ZFSCli(ZFS):
                 raise PropertyNotFound(f'invalid property on dataset {dataset}')
             else:
                 raise PropertyNotFound('invalid property')
+        elif 'permission denied' in proc.stderr:
+            raise PermissionError(proc.stderr)
         raise Exception(f'Command execution "{" ".join(proc.args)}" failed: {proc.stderr}')
 
     def _set_property(self, dataset: str, key: str, value: str, is_metadata: bool) -> None:
@@ -209,3 +233,102 @@ class ZFSCli(ZFS):
                 else:
                     res.append(Property(key=prop_name, value=prop_value, source=property_source, namespace=None))
         return res
+
+    def _create_dataset(
+        self,
+        name: str,
+        *,
+        dataset_type: DatasetType,
+        properties: Dict[str, str] = None,
+        metadata_properties: Dict[str, str] = None,
+        sparse: bool = False,
+        size: Optional[int] = None,
+        recursive: bool = False,
+    ) -> Dataset:
+
+        if dataset_type == DatasetType.BOOKMARK:
+            raise ValidationError('Bookmarks can\'t be created by this function')
+
+        # assemble the options list for properties
+        prop_args: List[str] = []
+        if properties:
+            for nk, nv in properties.items():
+                prop_args += ['-o', f'{nk}={nv}']
+        if metadata_properties:
+            for mk, mv in metadata_properties.items():
+                prop_args += ['-o', f'{mk}={mv}']
+
+        if dataset_type == DatasetType.FILESET:
+            assert size is None, 'Filesets have no size'
+            assert sparse is False, 'Filesets cannot be sparse'
+
+            # try on our own first, then depending on settings use the pe helper
+            args = [self.__exe, 'create']
+            if recursive:
+                args += ['-p']
+
+            args += prop_args
+            args += [name]
+
+            log.debug(f'executing: {args}')
+            proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
+            if proc.returncode != 0 or len(proc.stderr) > 0:
+                if 'filesystem successfully created, but it may only be mounted by root' in proc.stderr:
+                    if self.use_pe_helper:
+                        # We may not have a mountpoint, but tried to inherit the base from the parent.
+                        # In this case, we need to compute it on our own, for now we simply break.
+                        try:
+                            mp = properties['mountpoint']
+                        except KeyError:
+                            msg = 'Mountpoint property not set, can\'t run pe_helper'
+                            log.error(msg)
+                            raise PermissionError(msg)
+
+                        log.info(f'Fileset {name} was created, using pe_helper to set the mountpoint')
+                    else:
+                        log.info(f'Fileset {name} was created, but could not be mounted due to not running as root')
+                        raise PermissionError(proc.stderr)
+
+            if self.use_pe_helper:
+                try:
+                    mp = properties['mountpoint']
+                except KeyError:
+                    raise ValidationError('Mountpoint not found in properties')
+                self._execute_pe_helper('create', recursive=recursive, mountpoint=properties['mountpoint'], name=name)
+            else:
+                args = [self.__exe, 'create']
+
+                if recursive:
+                    args += ['-p']
+
+                args += [name]
+                print(f'Executing {args}')
+
+        elif dataset_type == DatasetType.VOLUME:
+            assert size is not None
+
+            args = [self.__exe, 'create']
+            if sparse:
+                args += ['-s']
+            if recursive:
+                args += ['-p']
+            # [-b blocksize] is set using properties
+
+            args += prop_args
+
+            args += ['-V', str(size), name]
+
+            print(f'Executing {args}')
+
+        elif dataset_type == DatasetType.SNAPSHOT:
+            assert size is None, 'Snapshots have no size'
+            assert sparse is False, 'Snapshots can\'t be sparse'
+
+            args = [self.__exe, 'snapshot', *prop_args, name]
+            print(f'Executing {args}')
+
+        raise NotImplementedError()
+
+    def create_bookmark(self, snapshot: str, name: str) -> Dataset:
+        validate_dataset_path(snapshot)
+        raise NotImplementedError()

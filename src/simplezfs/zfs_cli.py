@@ -33,6 +33,9 @@ class ZFSCli(ZFS):
         super().__init__(metadata_namespace=metadata_namespace)
         self.find_executable(path=zfs_exe)
 
+    def __repr__(self) -> str:
+        return f'<ZFSCli(exe="{self.__exe}", pe_helper="{self._pe_helper}", use_pe_helper="{self._use_pe_helper}")>'
+
     def find_executable(self, path: str = None):
         '''
         Tries to find the executable ``zfs(8)``. If ``path`` points to an executable, it is used instead of relying on

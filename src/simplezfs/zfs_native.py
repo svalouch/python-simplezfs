@@ -22,6 +22,9 @@ class ZFSNative(ZFS):
                  use_pe_helper: bool = False, **kwargs) -> None:
         super().__init__(metadata_namespace=metadata_namespace)
 
+    def __repr__(self) -> str:
+        return f'<ZFSNative(pe_helper="{self._pe_helper}", use_pe_helper="{self._use_pe_helper}")>'
+
     def set_property(self, dataset: str, key: str, value: str, *, metadata: bool = False, overwrite_metadata_namespace: Optional[str] = None) -> None:
         raise NotImplementedError
 

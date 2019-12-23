@@ -62,6 +62,9 @@ class ZFS:
         self.pe_helper = pe_helper
         self.use_pe_helper = use_pe_helper
 
+    def __repr__(self) -> str:
+        return f'<ZFS(pe_helper="{self._pe_helper}", use_pe_helper="{self._use_pe_helper}")>'
+
     @property
     def metadata_namespace(self) -> Optional[str]:
         '''

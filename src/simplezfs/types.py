@@ -132,7 +132,7 @@ class PropertySource(str, Enum):
             return PropertySource.TEMPORARY
         elif val == 'received':
             return PropertySource.RECEIVED
-        elif val == 'none':
+        elif val == 'none' or val == '-':
             return PropertySource.NONE
         else:
             raise ValueError(f'Value {value} is not a valid PropertySource')

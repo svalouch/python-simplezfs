@@ -486,7 +486,7 @@ class ZFS:
 
         # check the syntax of the properties
         if properties is not None:
-            for k, v in properties:
+            for k, v in properties.items():
                 validate_native_property_name(k)
                 validate_property_value(v)
 

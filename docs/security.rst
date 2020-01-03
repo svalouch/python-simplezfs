@@ -62,6 +62,24 @@ If all went well, the helper shall return ``0`` as exit code. Otherwise, the exi
 problem. Text output to stdout/stderr is captured and logged as info (if the exit code is ``0``) or error (otherwise).
 The logger is either called ``simplezfs.zfs.pe_helper`` or ``simplezfs.zpool.pe_helper``, depending on the usage.
 
++-------+------------------------------------------------------------------------+
+| Exit  | Meaning                                                                |
++-------+------------------------------------------------------------------------+
+| ``0`` | Everything went well                                                   |
++-------+------------------------------------------------------------------------+
+| ``1`` | Parameter or general error, such as missing utilities                  |
++-------+------------------------------------------------------------------------+
+| ``2`` | The parent directory does not exist or is not a directory              |
++-------+------------------------------------------------------------------------+
+| ``3`` | The parent dataset does not exist                                      |
++-------+------------------------------------------------------------------------+
+| ``4`` | The target fileset is not in the hierarchy of the parent dataset       |
++-------+------------------------------------------------------------------------+
+| ``5`` | The mountpoint is not inside the parent directory or otherwise invalid |
++-------+------------------------------------------------------------------------+
+| ``6`` | Calling the zfs utilities failed (when carrying out the command)       |
++-------+------------------------------------------------------------------------+
+
 When to use
 ===========
 The helper is generally only required on Linux, where, according to the ``zfs(8)`` manpage on ``zfs allow``, the
@@ -89,3 +107,23 @@ As some commands manipulate the namespace, the following actions require root pe
 * ``snapshot`` (:func:`~simplezfs.ZFS.create_snapshot`)
 
 Additionally, changing the ``mountpoint`` property on filesets (:func:`~simplezfs.ZFS.set_mountpoint`)
+
+When not to use
+===============
+The privilege escalation helper implements only the absolute minimum that is required. For everything else, the user
+is expected to use ``zfs allow`` to delegate the permissions to the user. For example, it does not implement volume
+creation, only filesets are handled.
+
+Delegation (``zfs allow``)
+**************************
+Using ``zfs allow``, a lot of the required permissions can be delegated to the user. For example, to create volumes,
+one needs the following permissions:
+
+* ``create``
+* ``volsize``
+* ``refreservation``
+
+``create`` is the command, and ``volsize`` and ``refreservation`` are properties set by ``zfs create -V <size>
+<dataset>``. Some more may be required with other options (such as ``volblocksize`` etc.) Since it does not mount the
+volume (as opposed to a fileset), the privilege escalation helper is not required and the permissions are expected to
+be delegated to the user running the program using ``zfs allow``.

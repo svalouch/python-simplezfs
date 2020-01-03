@@ -355,28 +355,6 @@ class TestZFS:
             ds = zfs.create_snapshot('test/test', 'testsnap', properties=dict(test='test'))
             assert ds.name == 'test@testsnap'
 
-    def test_create_bookmark_call(self):
-        '''
-        Tests the call parameters with which create_bookmark calls create_dataset
-        '''
-        def mock_create_dataset(myself, name, dataset_type=DatasetType.FILESET, properties=None,
-                                metadata_properties=None, mount_helper=None, sparse=False, size=None, recursive=False):
-            assert name == 'test/test#testmark'
-            assert dataset_type == DatasetType.BOOKMARK
-            assert properties == {'test': 'test'}
-            assert metadata_properties is None
-            assert mount_helper is None
-            assert sparse is False
-            assert size is None
-            assert recursive is False
-            return Dataset(name='test#testmark', full_path='test/test#testmark', pool='test',
-                           parent='test', type=dataset_type)
-
-        with patch.object(ZFS, 'create_dataset', new=mock_create_dataset):
-            zfs = ZFS()
-            ds = zfs.create_bookmark('test/test', 'testmark', properties=dict(test='test'))
-            assert ds.name == 'test#testmark'
-
     def test_create_fileset_call(self):
         '''
         Tests the call parameters with which create_fileset calls create_dataset
@@ -425,6 +403,8 @@ class TestZFS:
         zfs = ZFS()
         with pytest.raises(NotImplementedError):
             zfs.get_dataset_info('name')
+        with pytest.raises(NotImplementedError):
+            zfs.create_bookmark('snap@shot', 'test')
         with pytest.raises(NotImplementedError):
             zfs.list_datasets()
         with pytest.raises(NotImplementedError):

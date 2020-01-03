@@ -338,32 +338,17 @@ class ZFS:
             metadata_properties=metadata_properties
         )
 
-    def create_bookmark(
-        self,
-        dataset: str,
-        name: str,
-        *,
-        properties: Dict[str, str] = None,
-        metadata_properties: Dict[str, str] = None
-    ) -> Dataset:
+    def create_bookmark(self, snapshot: str, name: str) -> Dataset:
         '''
-        Create a new bookmark from an existing dataset.
+        Create a new bookmark from an existing snapshot.
 
-        :param dataset: The dataset to attach a bookmark to.
+        :param snapshot: The snapshot to attach a bookmark to.
         :param name: Name of the bookmark (the part after the ``#``)
-        :param properties: Dict of native properties to set.
-        :param metadata_properties: Dict of native properties to set. For namespaces other than the default (or when
-            no default has been set, format the key using ``namespace:key``.
         :return: Info about the newly created dataset.
         :raises ValidationError: If validating the parameters failed.
-        :raises DatasetNotFound: If the dataset can't be found.
+        :raises DatasetNotFound: If the snapshot can't be found.
         '''
-        return self.create_dataset(
-            f'{dataset}#{name}',
-            dataset_type=DatasetType.BOOKMARK,
-            properties=properties,
-            metadata_properties=metadata_properties
-        )
+        raise NotImplementedError(f'{self} has not implemented this function')
 
     def create_fileset(
         self,
@@ -460,7 +445,6 @@ class ZFS:
         function to create datasets, you may want to take a look at the more specific functions (that essentially call
         this one) for convenience:
 
-        * :func:`~ZFS.create_bookmark`
         * :func:`~ZFS.create_fileset`
         * :func:`~ZFS.create_snapshot`
         * :func:`~ZFS.create_volume`
@@ -469,6 +453,10 @@ class ZFS:
         applies for `filesets` with mountpoints that are neither ``none`` nor ``legacy`` on `Linux`.
 
         .. note::
+
+            Bookmarks can't be created this way, use :func:`~ZFS.create_bookmark` for that.
+
+        .. warning::
 
             On Linux, only root is allowed to manipulate the namespace (aka `mount`). Refer to :ref:`the_mount_problem` in
             the documentation.
@@ -484,9 +472,12 @@ class ZFS:
         :param recursive: Recursively create the parent fileset. Refer to the ZFS documentation about the `-p`
             parameter for ``zfs create``. This does not apply to types other than volumes or filesets.
         :raises ValidationError: If validating the parameters failed.
-        :raises DatasetNotFound: If the dataset can't be found (snapshot, bookmark) or the parent dataset can't be
-            found (fileset, volume with ``recursive = False``).
+        :raises DatasetNotFound: If the dataset (snapshot) or parent dataset (filesets and volumes with `recursive`
+            set to `False`) can't be found.
         '''
+        if dataset_type == DatasetType.BOOKMARK:
+            raise ValidationError('Bookmarks can\'t be created using this function.')
+
         if '/' in name:
             validate_dataset_path(name)
         else:
@@ -520,10 +511,25 @@ class ZFS:
                     _metadata_properties[meta_name] = f'{v}'
                 validate_property_value(_metadata_properties[meta_name])
 
+        # sparse and size are reset for all but the VOLUME type
+        if dataset_type != DatasetType.VOLUME:
+            if sparse:
+                log.warning('Ignoring "sparse" it is only valid for volumes')
+                sparse = False
+            if size:
+                log.warning('Ignoring "size", it is only valid for volumes')
+                size = None
+
         # validate type specifics
         if dataset_type in (DatasetType.FILESET, DatasetType.VOLUME):
             if '@' in name or '#' in name:
-                raise ValidationError('Volumes/Filesets can\'t contain @ or #')
+                raise ValidationError('Volumes/Filesets can\'t contain @ (snapshot) or # (bookmark)')
+
+            # NOTE this assumes that we're not being called on the root dataset itself!
+            # check if the parent exists
+            parent_ds = '/'.join(name.split('/')[:-1])
+            if not self.dataset_exists(parent_ds) and not recursive:
+                raise DatasetNotFound(f'Parent dataset "{parent_ds}" does not exist and "recursive" is not set')
 
             if dataset_type == DatasetType.VOLUME:
                 if not size:
@@ -546,28 +552,10 @@ class ZFS:
                     if not ((blocksize & (blocksize - 1) == 0) and blocksize != 0):
                         raise ValidationError('blocksize must be a power of two')
 
-            else:
-                if sparse:
-                    log.warning('"sparse" set for fileset, ignoring')
-                    sparse = False
-
-            # this assumes that we're not being called on the root dataset itself!
-            # check if the parent exists
-            parent_ds = '/'.join(name.split('/')[:-1])
-            if not self.dataset_exists(parent_ds) and not recursive:
-                raise DatasetNotFound(f'Parent dataset "{parent_ds}" does not exist and "recursive" is not set')
-
-        elif dataset_type == DatasetType.FILESET:
-            if '@' in name or '#' in name:
-                raise ValidationError('Filesets can\'t contain @ or #')
-
-        elif dataset_type in (DatasetType.SNAPSHOT, DatasetType.BOOKMARK):
+        elif dataset_type == DatasetType.SNAPSHOT:
             if recursive:
                 log.warning('"recursive" set for snapshot or bookmark, ignored')
                 recursive = False
-            if sparse:
-                log.warning('"sparse" set for snapshot or bookmark, ignored')
-                sparse = False
 
             symbol = '@' if dataset_type == DatasetType.SNAPSHOT else '#'
 

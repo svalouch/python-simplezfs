@@ -424,6 +424,8 @@ class TestZFS:
     def test_notimplemented(self):
         zfs = ZFS()
         with pytest.raises(NotImplementedError):
+            zfs.get_dataset_info('name')
+        with pytest.raises(NotImplementedError):
             zfs.list_datasets()
         with pytest.raises(NotImplementedError):
             zfs.create_dataset('tank/test5')

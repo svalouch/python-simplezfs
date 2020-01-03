@@ -73,6 +73,17 @@ class ZFSCli(ZFS):
             validate_pool_name(name)
         return os.path.exists(os.path.join('/dev/zvol', name))
 
+    def get_dataset_info(self, name: str) -> Dataset:
+        if '/' not in name:
+            validate_pool_name(name)
+        else:
+            validate_dataset_path(name)
+        args = [self.__exe, 'list', '-H', '-t', 'all', name]
+        proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
+        if proc.returncode != 0 or len(proc.stderr) > 0:
+            self.handle_command_error(proc)
+        return Dataset.from_string(proc.stdout.split('\t')[0].strip())
+
     def list_datasets(self, *, parent: Union[str, Dataset] = None) -> List[Dataset]:
         '''
         :todo: ability to limit to a pool (path validator discards pool-only arguments)

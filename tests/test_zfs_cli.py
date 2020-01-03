@@ -73,6 +73,38 @@ class TestZFSCli:
     ##########################################################################
 
     @patch('subprocess.run')
+    def test_get_dataset_info_happy_dataset(self, subproc):
+        test_stdout = 'rpool/test	105M	142G	192K	none'
+        subproc.return_value = subprocess.CompletedProcess(args=[], returncode=0, stdout=test_stdout, stderr='')
+
+        zfs = ZFSCli(zfs_exe='/bin/true')
+        data = zfs.get_dataset_info('rpool/test')
+        subproc.assert_called_once()
+        assert ['/bin/true', 'list', '-H', '-t', 'all', 'rpool/test'] == subproc.call_args[0][0]
+        assert data.pool == 'rpool'
+        assert data.parent == 'rpool'
+        assert data.name == 'test'
+        assert data.type == DatasetType.VOLUME
+        assert data.full_path == 'rpool/test'
+
+    @patch('subprocess.run')
+    def test_get_dataset_info_happy_pool(self, subproc):
+        test_stdout = 'rpool	105M	142G	192K	none'
+        subproc.return_value = subprocess.CompletedProcess(args=[], returncode=0, stdout=test_stdout, stderr='')
+
+        zfs = ZFSCli(zfs_exe='/bin/true')
+        data = zfs.get_dataset_info('rpool')
+        subproc.assert_called_once()
+        assert ['/bin/true', 'list', '-H', '-t', 'all', 'rpool'] == subproc.call_args[0][0]
+        assert data.pool == 'rpool'
+        assert data.parent == None
+        assert data.name == 'rpool'
+        assert data.type == DatasetType.VOLUME
+        assert data.full_path == 'rpool'
+
+    ##########################################################################
+
+    @patch('subprocess.run')
     def test_list_dataset_noparent_happy(self, subproc):
         test_stdout = '''tank	213G	13.3G	96K	none
 tank/system	128G	13.3G	96K	none

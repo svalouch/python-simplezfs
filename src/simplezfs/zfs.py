@@ -138,6 +138,18 @@ class ZFS:
             return True
         return False
 
+    def get_dataset_info(self, name: str) -> Dataset:
+        '''
+        Returns basic information about a dataset. To retrieve its properties, see :func:`~ZFS.get_property` and
+        :func:`~ZFS.get_properties`.
+
+        :param name: The name of the dataset in question.
+        :returns: The dataset info.
+        :raises DatasetNotFound: If the dataset does not exist.
+        :raises ValidationError: If the name was invalid.
+        '''
+        raise NotImplementedError(f'{self} has not implemented this function')
+
     def list_datasets(self, *, parent: Union[str, Dataset] = None) -> List[Dataset]:
         '''
         Lists all datasets known to the system. If ``parent`` is set to a pool or dataset name (or a :class:`~zfs.types.Dataset`),

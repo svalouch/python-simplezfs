@@ -23,7 +23,7 @@ matrix:
           - mypy src/simplezfs
           - flake8
       - language: python
-        python: '3.7'
+        python: '3.8'
         install:
           - pip install -r requirements.txt
           - pip install -r requirements_develop.txt

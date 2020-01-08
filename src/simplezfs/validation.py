@@ -17,7 +17,7 @@ METADATA_PROPERTY_NAME_LEN_MAX: int = MAXNAMELEN
 #: Maximum length of a metadata property value in bytes
 METADATA_PROPERTY_VALUE_LEN_MAX: int = 8192
 
-#: Regular expression for validating dataset names, handling both the name itself as well as snapshot or bookmark names.
+#: Regular expression for validating dataset names, handling both the name itself as well as snapshot or bookmark names
 DATASET_NAME_RE = re.compile(r'^(?P<dataset>[a-zA-Z0-9_\-.:]+)(?P<detail>(@|#)[a-zA-Z0-9_\-.:]+)?$')
 #: Regular expression for validating a native property name
 NATIVE_PROPERTY_NAME_RE = re.compile(r'^[a-z]([a-z0-9]+)?$')

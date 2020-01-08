@@ -107,7 +107,7 @@ class PropertySource(str, Enum):
     INHERITED = 'inherited'
     #: Property is temporary
     TEMPORARY = 'temporary'
-    #: Property is set to the value that it had due to the sender of a "zfs send/receive" operation having it set this way.
+    #: Property value is set due to a "zfs send/receive" operation.
     RECEIVED = 'received'
     #: Property is set on the dataset in question
     NONE = 'none'

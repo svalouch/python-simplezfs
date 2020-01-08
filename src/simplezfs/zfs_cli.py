@@ -204,7 +204,8 @@ class ZFSCli(ZFS):
                     if include_metadata:
                         namespace = prop_name.split(':')[0]
                         prop_name = prop_name.lstrip(f'{namespace}:')
-                        res.append(Property(key=prop_name, value=prop_value, source=property_source, namespace=namespace))
+                        res.append(Property(key=prop_name, value=prop_value, source=property_source,
+                                            namespace=namespace))
                 else:
                     res.append(Property(key=prop_name, value=prop_value, source=property_source, namespace=None))
         return res

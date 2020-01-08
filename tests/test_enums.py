@@ -6,7 +6,10 @@ from simplezfs.types import DatasetType, PropertySource
 
 class TestDatasetType:
 
-    @pytest.mark.parametrize('string,value', [('FiLeSet', DatasetType.FILESET), ('fileset', DatasetType.FILESET), ('vOlUMe', DatasetType.VOLUME), ('volume', DatasetType.VOLUME), ('SnapSHOT', DatasetType.SNAPSHOT), ('snapshot', DatasetType.SNAPSHOT), ('BOOKmark', DatasetType.BOOKMARK), ('bookmark', DatasetType.BOOKMARK)])
+    @pytest.mark.parametrize('string,value', [('FiLeSet', DatasetType.FILESET), ('fileset', DatasetType.FILESET),
+                                              ('vOlUMe', DatasetType.VOLUME), ('volume', DatasetType.VOLUME),
+                                              ('SnapSHOT', DatasetType.SNAPSHOT), ('snapshot', DatasetType.SNAPSHOT),
+                                              ('BOOKmark', DatasetType.BOOKMARK), ('bookmark', DatasetType.BOOKMARK)])
     def test_from_string_valid(self, string, value):
         '''
         Tests that the from_string helper works.
@@ -35,7 +38,12 @@ class TestDatasetType:
 
 class TestPropertySource:
 
-    @pytest.mark.parametrize('string,value', [('default', PropertySource.DEFAULT), ('DeFAULT', PropertySource.DEFAULT), ('inheriteD', PropertySource.INHERITED), ('inherited', PropertySource.INHERITED), ('TEMPORARY', PropertySource.TEMPORARY), ('temporary', PropertySource.TEMPORARY), ('rEcEiVeD', PropertySource.RECEIVED), ('received', PropertySource.RECEIVED), ('None', PropertySource.NONE), ('none', PropertySource.NONE)])
+    @pytest.mark.parametrize('string,value', [
+        ('default', PropertySource.DEFAULT), ('DeFAULT', PropertySource.DEFAULT),
+        ('inheriteD', PropertySource.INHERITED), ('inherited', PropertySource.INHERITED),
+        ('TEMPORARY', PropertySource.TEMPORARY), ('temporary', PropertySource.TEMPORARY),
+        ('rEcEiVeD', PropertySource.RECEIVED), ('received', PropertySource.RECEIVED),
+        ('None', PropertySource.NONE), ('none', PropertySource.NONE)])
     def test_from_string_valid(self, string, value):
         '''
         Test that the from_string helper works.

@@ -25,10 +25,12 @@ class ZFSNative(ZFS):
     def __repr__(self) -> str:
         return f'<ZFSNative(pe_helper="{self._pe_helper}", use_pe_helper="{self._use_pe_helper}")>'
 
-    def set_property(self, dataset: str, key: str, value: str, *, metadata: bool = False, overwrite_metadata_namespace: Optional[str] = None) -> None:
+    def set_property(self, dataset: str, key: str, value: str, *, metadata: bool = False,
+                     overwrite_metadata_namespace: Optional[str] = None) -> None:
         raise NotImplementedError
 
-    def get_property(self, dataset: str, key: str, *, metadata: bool = False, overwrite_metadata_namespace: Optional[str] = None) -> Property:
+    def get_property(self, dataset: str, key: str, *, metadata: bool = False,
+                     overwrite_metadata_namespace: Optional[str] = None) -> Property:
         raise NotImplementedError
 
     def get_properties(self, dataset: str, *, include_metadata: bool = False) -> List[Property]:

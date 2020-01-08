@@ -45,8 +45,8 @@ class ZFS:
 
     The functions :func:`set_property`, :func:`get_property` and :func:`get_properties` wrap the ZFS get/set
     functionality. To support so-called `user properties`, which are called `metadata` in this API, a default namespace
-    can be stored using `metadata_namespace` when instantiating the interface or by calling :func:`set_metadata_namespace`
-    at any time.
+    can be stored using `metadata_namespace` when instantiating the interface or by calling
+    :func:`set_metadata_namespace`  at any time.
 
     :note: Not setting a metadata namespace means that one can't set or get metadata properties, unless the overwrite
         parameter for the get/set functions is used.
@@ -155,8 +155,8 @@ class ZFS:
 
     def list_datasets(self, *, parent: Union[str, Dataset] = None) -> List[Dataset]:
         '''
-        Lists all datasets known to the system. If ``parent`` is set to a pool or dataset name (or a :class:`~zfs.types.Dataset`),
-        lists all the children of that dataset.
+        Lists all datasets known to the system. If ``parent`` is set to a pool or dataset name (or a
+        :class:`~zfs.types.Dataset`), lists all the children of that dataset.
 
         :param parent: If set, list all child datasets.
         :return: The list of datasets.
@@ -177,7 +177,8 @@ class ZFS:
         # real_use_pe_helper = use_pe_helper if use_pe_helper is not None else self.use_pe_helper
         raise NotImplementedError(f'not implemented yet')
 
-    def set_property(self, dataset: str, key: str, value: str, *, metadata: bool = False, overwrite_metadata_namespace: Optional[str] = None) -> None:
+    def set_property(self, dataset: str, key: str, value: str, *, metadata: bool = False,
+                     overwrite_metadata_namespace: Optional[str] = None) -> None:
         '''
         Sets the ``value`` of the native property ``key``. By default, only native properties can be set. If
         ``metadata`` is set to **True**, the default metadata namespace is prepended or the one in
@@ -237,12 +238,13 @@ class ZFS:
         '''
         raise NotImplementedError(f'{self} has not implemented this function')
 
-    def get_property(self, dataset: str, key: str, *, metadata: bool = False, overwrite_metadata_namespace: Optional[str] = None) -> Property:
+    def get_property(self, dataset: str, key: str, *, metadata: bool = False,
+                     overwrite_metadata_namespace: Optional[str] = None) -> Property:
         '''
         Gets a specific property named ``key`` from the ``dataset``. By default, only native properties are returned.
-        This behaviour can be changed by setting ``metadata`` to **True**, which uses the default `metadata_namespace` to
-        select the namespace. The namespace can be overwritten using ``overwrite_metadata_namespace`` for the duration of the
-        method invocaton.
+        This behaviour can be changed by setting ``metadata`` to **True**, which uses the default `metadata_namespace`
+        to select the namespace. The namespace can be overwritten using ``overwrite_metadata_namespace`` for the
+        duration of the method invocaton.
 
         :param dataset: Name of the dataset to get the property. Expects the full path beginning with the pool name.
         :param key: Name of the property to set. For non-native properties, set ``metadata`` to **True** and overwrite
@@ -461,8 +463,8 @@ class ZFS:
 
         .. warning::
 
-            On Linux, only root is allowed to manipulate the namespace (aka `mount`). Refer to :ref:`the_mount_problem` in
-            the documentation.
+            On Linux, only root is allowed to manipulate the namespace (aka `mount`). Refer to :ref:`the_mount_problem`
+            in the documentation.
 
         :param name: The name of the new dataset. This includes the full path, e.g. ``tank/data/newdataset``.
         :param dataset_type: Indicates the type of the dataset to be created.
@@ -572,7 +574,9 @@ class ZFS:
 
             # TODO
 
-        return self._create_dataset(name, dataset_type=dataset_type, properties=properties, metadata_properties=_metadata_properties, sparse=sparse, size=size, recursive=recursive)
+        return self._create_dataset(name, dataset_type=dataset_type, properties=properties,
+                                    metadata_properties=_metadata_properties, sparse=sparse, size=size,
+                                    recursive=recursive)
 
     def _create_dataset(
         self,

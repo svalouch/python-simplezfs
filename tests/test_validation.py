@@ -84,14 +84,18 @@ class TestDatasetName:
     Tests the function ``validate_dataset_name``.
     '''
 
-    @pytest.mark.parametrize('name', ['a', 'aa', '0', '0a', 'A', 'A0', 'qwertzuiop', 'a-', '-a', 'a.a', '.', 'a:', ':a', 'a:a', 'a::a', '842bf5a29bd55c12c20a8d1e73bdb5790e8ab804d857885e35e55be025acb6b2', '842bf5a29bd55c12c20a8d1e73bdb5790e8ab804d857885e35e55be025acb6b2-init', 'towel@20190525', 'page#42'])
+    @pytest.mark.parametrize('name', [
+        'a', 'aa', '0', '0a', 'A', 'A0', 'qwertzuiop', 'a-', '-a', 'a.a', '.', 'a:', ':a', 'a:a', 'a::a',
+        '842bf5a29bd55c12c20a8d1e73bdb5790e8ab804d857885e35e55be025acb6b2',
+        '842bf5a29bd55c12c20a8d1e73bdb5790e8ab804d857885e35e55be025acb6b2-init', 'towel@20190525', 'page#42'])
     def test_valid_name(self, name):
         '''
         Tests a set of known good combinations.
         '''
         validate_dataset_name(name)
 
-    @pytest.mark.parametrize('name', ['/a', '/', 'a/a', 'a/', 'a+', 'ä', '→', '\0', '\n', 'towel@@20190525', 'towel@#42', 'page##42', 'page#@20190525'])
+    @pytest.mark.parametrize('name', ['/a', '/', 'a/a', 'a/', 'a+', 'ä', '→', '\0', '\n', 'towel@@20190525',
+                                      'towel@#42', 'page##42', 'page#@20190525'])
     def test_invalid_name(self, name):
         '''
         Tests a set of known invalid combinations.
@@ -172,7 +176,8 @@ class TestNativePropertyName:
         '''
         validate_native_property_name(name)
 
-    @pytest.mark.parametrize('name', ['0', '0a', 'A', 'AA', '-', 'a-', 'a-a', '-a', '_', 'a_', 'a_a', '_a', ':', 'a:', 'a:a', ':a', '\0'])
+    @pytest.mark.parametrize('name', ['0', '0a', 'A', 'AA', '-', 'a-', 'a-a', '-a', '_', 'a_', 'a_a', '_a', ':', 'a:',
+                                      'a:a', ':a', '\0'])
     def test_invalid_name(self, name):
         '''
         Tests a set of known invalid combinations.
@@ -211,7 +216,8 @@ class TestMetadataPropertyName:
         '''
         validate_metadata_property_name(name)
 
-    @pytest.mark.parametrize('name', ['0', '0a', 'A', 'AA', '-', 'a-', 'a-a', '-a', '_', 'a_', 'a_a', '_a', ':', 'a:', '\0', 'a+:a'])
+    @pytest.mark.parametrize('name', ['0', '0a', 'A', 'AA', '-', 'a-', 'a-a', '-a', '_', 'a_', 'a_a', '_a', ':', 'a:',
+                                      '\0', 'a+:a'])
     def test_invalid_name(self, name):
         '''
         Tests a set of known invalid combinations.

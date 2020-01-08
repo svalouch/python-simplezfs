@@ -97,7 +97,7 @@ class TestZFSCli:
         subproc.assert_called_once()
         assert ['/bin/true', 'list', '-H', '-t', 'all', 'rpool'] == subproc.call_args[0][0]
         assert data.pool == 'rpool'
-        assert data.parent == None
+        assert data.parent is None
         assert data.name == 'rpool'
         assert data.type == DatasetType.VOLUME
         assert data.full_path == 'rpool'
@@ -158,7 +158,8 @@ tank/system/root	14.9G	13.3G	14.9G	/'''
         subproc.return_value = subprocess.CompletedProcess(args=[], returncode=0, stdout=test_stdout, stderr='')
 
         zfs = ZFSCli(zfs_exe='/bin/true')
-        lst = zfs.list_datasets(parent=Dataset(pool='tank', name='system', full_path='tank', parent='tank', type=DatasetType.FILESET))
+        lst = zfs.list_datasets(parent=Dataset(pool='tank', name='system', full_path='tank', parent='tank',
+                                               type=DatasetType.FILESET))
         subproc.assert_called_once()
         assert ['/bin/true', 'list', '-H', '-r', '-t', 'all', 'tank'] == subproc.call_args[0][0]
         assert len(lst) == 4
@@ -202,7 +203,8 @@ tank/system/root	14.9G	13.3G	14.9G	/'''
         subproc.return_value = subprocess.CompletedProcess(args=[], returncode=0, stdout=test_stdout, stderr='')
 
         zfs = ZFSCli(zfs_exe='/bin/true')
-        lst = zfs.list_datasets(parent=Dataset(pool='tank', full_path='tank/system', name='system', parent='tank', type=DatasetType.FILESET))
+        lst = zfs.list_datasets(parent=Dataset(pool='tank', full_path='tank/system', name='system', parent='tank',
+                                               type=DatasetType.FILESET))
         subproc.assert_called_once()
         assert ['/bin/true', 'list', '-H', '-r', '-t', 'all', 'tank/system'] == subproc.call_args[0][0]
         assert len(lst) == 3

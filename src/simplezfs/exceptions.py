@@ -54,6 +54,13 @@ class PEHelperException(ZFSException):
     '''
     Indicates a problem when running the PE helper.
     '''
+    pass
+
+
+class ExternalPEHelperException(PEHelperException):
+    '''
+    Indicates a problem when running the external helper script.
+    '''
     def __init__(self, message: str, returncode: Optional[int], stdout: Optional[str] = None, stderr: Optional[str] = None) -> None:
         '''
         :param message: The message to carry.

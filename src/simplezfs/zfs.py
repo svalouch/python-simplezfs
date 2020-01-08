@@ -4,19 +4,16 @@ ZFS frontend API
 '''
 
 import logging
-import os
-import stat
-import subprocess
 from typing import Dict, List, Optional, Union
 
 from .exceptions import (
     DatasetNotFound,
-    PEHelperException,
     PermissionError,
     PoolNotFound,
     PropertyNotFound,
     ValidationError,
 )
+from .pe_helper import PEHelperBase
 from .types import Dataset, DatasetType, Property
 from .validation import (
     validate_dataset_path,
@@ -53,16 +50,15 @@ class ZFS:
     :note: Not setting a metadata namespace means that one can't set or get metadata properties, unless the overwrite
         parameter for the get/set functions is used.
 
-    The parameter ``use_pe_helper`` is used to control whether the ``pe_helper`` executable will be used when
-    performing actions that require elevated permissions. It can be changed at anytime using the ``use_pe_helper``
-    property.
+    The parameter ``use_pe_helper`` is used to control whether the ``pe_helper`` will be used when performing actions
+    that require elevated permissions. It can be changed at anytime using the ``use_pe_helper`` property.
 
     :param metadata_namespace: Default namespace
     :param pe_helper: Privilege escalation (PE) helper to use for actions that require elevated privileges (root).
     :param use_pe_helper: Whether to use the PE helper for creating and (u)mounting.
     :param kwargs: Extra arguments, ignored
     '''
-    def __init__(self, *, metadata_namespace: Optional[str] = None, pe_helper: Optional[str] = None,
+    def __init__(self, *, metadata_namespace: Optional[str] = None, pe_helper: Optional[PEHelperBase] = None,
                  use_pe_helper: bool = False, **kwargs) -> None:
         self.metadata_namespace = metadata_namespace
         self.pe_helper = pe_helper
@@ -88,42 +84,30 @@ class ZFS:
         self._metadata_namespace = namespace
 
     @property
-    def pe_helper(self) -> Optional[str]:
+    def pe_helper(self) -> Optional[PEHelperBase]:
         '''
         Returns the pe_helper, which may be None if not set.
         '''
         return self._pe_helper
 
     @pe_helper.setter
-    def pe_helper(self, helper: Optional[str]) -> None:
+    def pe_helper(self, helper: Optional[PEHelperBase]) -> None:
         '''
-        Sets the privilege escalation (PE) helper. Some basic checks for existance and executablility are performed,
-        but these are not sufficient for secure operation and are provided to aid the user in configuring the library.
-
-        :note: This method does not follow symlinks.
+        Sets the privilege escalation (PE) helper. Supply ``None`` to unset it.
 
         :raises FileNotFoundError: if the script can't be found or is not executable.
         '''
         if helper is None:
             log.debug('PE helper is None')
-            self._pe_helper = None
-        else:
-            candidate = helper.strip()
-
-            mode = os.lstat(candidate).st_mode
-            if not stat.S_ISREG(mode):
-                raise FileNotFoundError('PE helper must be a file')
-            if not os.access(candidate, os.X_OK):
-                raise FileNotFoundError('PE helper must be executable')
-            log.debug(f'Setting privilege escalation helper to "{candidate}"')
-            self._pe_helper = candidate
+        self._pe_helper = helper
 
     @property
     def use_pe_helper(self) -> bool:
         '''
-        Returns whether the privilege escalation (PE) helper should be used.
+        Returns whether the privilege escalation (PE) helper should be used. If the helper has not been set, this
+        property evaluates to ``False``.
         '''
-        return self._use_pe_helper
+        return self._pe_helper is not None and self._use_pe_helper
 
     @use_pe_helper.setter
     def use_pe_helper(self, use: bool) -> None:
@@ -174,15 +158,20 @@ class ZFS:
         Sets or changes the mountpoint property of a fileset. While this can be achieved using the generic function
         :func:`~ZFS.set_property`, it allows for using the privilege escalation (PE) helper if so desired.
 
+        If the ``use_pe_helper`` *property* is set and the argument is None, an attempt is made to manipulate the
+        property and the helper is used only if that fails. If the argument is ``True`` and no helper is set, a normal
+        attempt is made as well but an error is returned if that does not work due to permissions. If the argument is
+        ``False``, a normal attempt is made and the helper not used even if the property is ``True`` and a helper is
+        set, instead returning an error.
+
         :param fileset: The fileset to modify.
         :param mountpoint: The new value for the ``mountpoint`` property.
         :param use_pe_helper: Overwrite the default for using the privilege escalation (PE) helper for this task.
-            ``None`` (default) uses the default setting.
+            ``None`` (default) uses the default setting. If the helper is not set, it is not used.
         :raises DatasetNotFound: if the fileset could not be found.
         :raises ValidationError: if validating the parameters failed.
         '''
-        # real_use_pe_helper = use_pe_helper if use_pe_helper is not None else self.use_pe_helper
-        raise NotImplementedError(f'not implemented yet')
+        raise NotImplementedError(f'{self} has not implemented this function')
 
     def set_property(self, dataset: str, key: str, value: str, *, metadata: bool = False,
                      overwrite_metadata_namespace: Optional[str] = None) -> None:
@@ -647,53 +636,6 @@ class ZFS:
         '''
         raise NotImplementedError(f'{self} has not implemented this function')
 
-    def handle_pe_error(self, args: List[str], proc: subprocess.CompletedProcess) -> None:
-        '''
-        Handles errors from the Privilege Escalation (PE) helper. If the returncode is ß, nothing happens, otherwise
-        an exception is thrown.
-
-        :param args: Arguments passed to the helper (without the helper executable itself).
-        :param proc: The result of subprocess.run
-        :raises PEHelperException: In case of error.
-        '''
-        log = logging.getLogger('simplezfs.zfs.pe_helper')
-        if proc.returncode == 0:
-            log.info(f'PE helper action {args[0]} was successful')
-            if len(proc.stdout) > 0:
-                log.debug(f'PE stdout: {proc.stdout}')
-            if len(proc.stderr) > 0:
-                log.warning(f'PE stderr: {proc.stderr}')
-        else:
-            if proc.returncode == 1:
-                log.error('General error in PE executable: Wrong parameters or configuration problem')
-                msg = 'General error'
-            elif proc.returncode == 2:
-                msg = 'Parent directory does not exist or is not a directory'
-                log.error(msg)
-            elif proc.returncode == 3:
-                msg = 'Parent dataset does not exist'
-                log.error(msg)
-            elif proc.returncode == 4:
-                msg = 'Target fileset is not a (grand)child of parent or parent does not exist'
-                log.error(msg)
-            elif proc.returncode == 5:
-                msg = 'Mountpoint is not inside the parent directory or otherwise invalid'
-                log.error(msg)
-            elif proc.returncode == 6:
-                msg = 'Calling the zfs utility failed'
-                log.error(msg)
-            else:
-                msg = f'Unknown / Unhandled error with returncode {proc.returncode}'
-                log.error(msg)
-
-            # gather output
-            if len(proc.stdout) > 0:
-                log.warning(f'PE stdout: {proc.stdout}')
-            if len(proc.stderr) > 0:
-                log.warning(f'PE stderr: {proc.stderr}')
-
-            raise PEHelperException(msg, returncode=proc.returncode, stdout=proc.stdout, stderr=proc.stderr)
-
     def _execute_pe_helper(self, action: str, name: str, mountpoint: Optional[str] = None):
         '''
         Runs the specified action through the PE helper.
@@ -730,17 +672,7 @@ class ZFS:
         log = logging.getLogger('simplezfs.zfs.pe_helper')
         log.debug(f'About to run the following command: {cmd}')
 
-        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
-        if proc.returncode != 0 or len(proc.stderr) > 0:
-            log.error(f'PE Helper exit code {proc.returncode}')
-            log.error(f'Stdout: {proc.stdout}')
-            log.error(f'Stderr: {proc.stderr}')
-            raise PEHelperException('PE Helper execution error', proc.returncode, proc.stdout, proc.stderr)
-        else:
-            log.info(f'PE Helper successful')
-            log.debug(f'Return code: {proc.returncode}')
-            log.debug(f'Stdout: {proc.stdout}')
-            log.debug(f'Stderr: {proc.stderr}')
+        pass
 
 
 def get_zfs(api: str = 'cli', metadata_namespace: Optional[str] = None, **kwargs) -> ZFS:

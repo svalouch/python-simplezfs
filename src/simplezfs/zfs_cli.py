@@ -273,10 +273,11 @@ class ZFSCli(ZFS):
             log.debug(f'executing: {args}')
             proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
             if proc.returncode != 0 or len(proc.stderr) > 0:
+                # check if we tried something only root can do
                 if 'filesystem successfully created, but it may only be mounted by root' in proc.stderr:
                     if self.use_pe_helper:
-                        # We may not have a mountpoint, but tried to inherit the base from the parent.
-                        # In this case, we need to compute it on our own, for now we simply break.
+                        # The mountpoint property may be set, in which case we can run the PE helper. If it is not
+                        # set, we'd need to compute it based on the parent, but for now we simply error out.
                         try:
                             mp = properties['mountpoint']
                         except KeyError:

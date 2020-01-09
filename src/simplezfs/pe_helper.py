@@ -7,7 +7,7 @@ import subprocess
 from typing import List, Optional
 
 from .exceptions import PEHelperException, ExternalPEHelperException
-from .validation import validate_dataset_path, validate_pool_name, validate_property_value
+from .validation import validate_dataset_path, validate_pool_name
 
 
 class PEHelperBase:

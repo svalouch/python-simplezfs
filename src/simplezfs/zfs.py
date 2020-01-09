@@ -158,11 +158,10 @@ class ZFS:
         Sets or changes the mountpoint property of a fileset. While this can be achieved using the generic function
         :func:`~ZFS.set_property`, it allows for using the privilege escalation (PE) helper if so desired.
 
-        If the ``use_pe_helper`` *property* is set and the argument is None, an attempt is made to manipulate the
-        property and the helper is used only if that fails. If the argument is ``True`` and no helper is set, a normal
-        attempt is made as well but an error is returned if that does not work due to permissions. If the argument is
-        ``False``, a normal attempt is made and the helper not used even if the property is ``True`` and a helper is
-        set, instead returning an error.
+        The argument ``use_pe_helper`` can overwrite the property of the same name. If the argument is None, the
+        properties value will be assumed. In any case, the function attempts to set the property on its own first. If
+        that fails, it evaluates if the PE helper should be used, and will error out if it should be used but has not
+        been set. If the helper fails, a :class:`~simplezfs.exceptions.PEHelperException` is raised.
 
         :param fileset: The fileset to modify.
         :param mountpoint: The new value for the ``mountpoint`` property.
@@ -171,7 +170,24 @@ class ZFS:
         :raises DatasetNotFound: if the fileset could not be found.
         :raises ValidationError: if validating the parameters failed.
         '''
-        raise NotImplementedError(f'{self} has not implemented this function')
+        ds_type = self.get_property(fileset, 'type')
+        if ds_type != 'filesystem':
+            raise ValidationError(f'Dataset is not a filesystem and can\'t have its mountpoint set')
+
+        try:
+            self.set_property(fileset, 'mountpoint', mountpoint)
+        except PermissionError as e:
+            if self.pe_helper is not None:
+                real_use_pe_helper = use_pe_helper if use_pe_helper is not None else self.use_pe_helper
+
+                if real_use_pe_helper:
+                    log.info(f'Permission error when setting mountpoint for "{fileset}", retrying using PE helper')
+                    self.pe_helper.zfs_set_mountpoint(fileset, mountpoint)
+                else:
+                    log.error(f'Permission error when setting mountpoint for "{fileset}" and not using PE helper')
+                    raise e
+            else:
+                log.error(f'Permission error when setting mountpoint for "{fileset}" and PE helper is not set')
 
     def set_property(self, dataset: str, key: str, value: str, *, metadata: bool = False,
                      overwrite_metadata_namespace: Optional[str] = None) -> None:
@@ -377,6 +393,12 @@ class ZFS:
 
            This action requires the ``pe_helper`` on Linux when not running as `root`.
 
+        .. note::
+
+           If the function raises a ``PermissionError`` or ``PEHelperException``, the fileset may have been created,
+           but is missing its mountpoint property (along with it not being mounted) or other properties to which the
+           user has no permission to change (not in ``zfs allow``).
+
         :param name: Name of the new fileset (complete path in the ZFS hierarchy).
         :ppram mountpoint: Convenience parameter for setting/overwriting the moutpoint property
         :param properties: Dict of native properties to set.
@@ -415,6 +437,13 @@ class ZFS:
         '''
         Create a new volume of the given ``size`` (in bytes). If ``sparse`` is **True**, a sparse volume (also known
         as thin provisioned) will be created. If ``blocksize`` is given, it overwrites the ``blocksize`` property.
+
+        .. note::
+
+           Please read the note in :func:`~simplezfs.ZFS.create_filesystem` for permission handling for filesystems.
+           Generally, if the user does not have permission to set certain properties, the dataset may or may not have
+           been created but is missing the properties. It is up to the user of the library to clean up after
+           catching a ``PermissionError`.
 
         :param name: Name of the new volume (complete path in the ZFS hierarchy).
         :param size: The size (in `bytes`) for the new volume.

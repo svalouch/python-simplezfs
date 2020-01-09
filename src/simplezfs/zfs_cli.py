@@ -120,28 +120,6 @@ class ZFSCli(ZFS):
             res.append(Dataset.from_string(name.strip()))
         return res
 
-    def set_mountpoint(self, fileset: str, mountpoint: str, *, use_pe_helper: Optional[bool] = False) -> None:
-        real_use_pe_helper = use_pe_helper if use_pe_helper is not None else self.use_pe_helper
-        ds_type = self.get_property(fileset, 'type')
-        if ds_type != 'filesystem':
-            raise ValidationError('Given fileset is not a filesystem, can\'t set mountpoint')
-
-        if not real_use_pe_helper:
-            self.set_property(fileset, 'mountpoint', mountpoint)
-        else:
-            if not self.pe_helper:
-                raise ValidationError('PE helper should be used, but is not defined')
-
-            args = [self.pe_helper, 'set_mountpoint', fileset, mountpoint]
-            log.debug(f'set_mountpoint: executing {args}')
-            proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
-            log.debug(f'set_mountpoint returncode: {proc.returncode}')
-            log.debug(f'set_mountpoint stdout: {proc.stdout}')
-            log.debug(f'set_mountpoint stderr: {proc.stderr}')
-            # TODO log output
-            if proc.returncode != 0 or len(proc.stderr) > 0:
-                self.handle_command_error(proc, fileset)
-
     def handle_command_error(self, proc: subprocess.CompletedProcess, dataset: str = None) -> None:
         '''
         Handles errors that occured while running a command.
@@ -151,6 +129,7 @@ class ZFSCli(ZFS):
         :todo: propper exception!
         :raises DatasetNotFound: If zfs could not find the dataset it was requested to work with.
         :raises PropertyNotFound: If the could not find the property it was asked to work with.
+        :raises PermissionError: If zfs denied the operation, or if only root is allowed to carry it out.
         :raises Exception: tmp
         '''
         if 'dataset does not exist' in proc.stderr:
@@ -163,6 +142,8 @@ class ZFSCli(ZFS):
             else:
                 raise PropertyNotFound('invalid property')
         elif 'permission denied' in proc.stderr:
+            raise PermissionError(proc.stderr)
+        elif 'filesystem successfully created, but it may only be mounted by root' in proc.stderr:
             raise PermissionError(proc.stderr)
         raise Exception(f'Command execution "{" ".join(proc.args)}" failed: {proc.stderr}')
 
@@ -278,32 +259,26 @@ class ZFSCli(ZFS):
                     if self.use_pe_helper:
                         # The mountpoint property may be set, in which case we can run the PE helper. If it is not
                         # set, we'd need to compute it based on the parent, but for now we simply error out.
-                        try:
+                        if properties and 'mountpoint' in properties:
                             mp = properties['mountpoint']
-                        except KeyError:
+                            if self.pe_helper is not None:
+                                log.info(f'Fileset {name} was created, using pe_helper to set the mountpoint')
+                                self.pe_helper.zfs_set_mountpoint(name, mp)
+                            else:
+                                msg = 'Fileset created partially but no PE helper set'
+                                log.error(msg)
+                                raise PermissionError(msg)
+                        else:
                             msg = 'Mountpoint property not set, can\'t run pe_helper'
                             log.error(msg)
                             raise PermissionError(msg)
 
-                        log.info(f'Fileset {name} was created, using pe_helper to set the mountpoint')
                     else:
                         log.info(f'Fileset {name} was created, but could not be mounted due to not running as root')
                         raise PermissionError(proc.stderr)
-
-            if self.use_pe_helper:
-                try:
-                    mp = properties['mountpoint']
-                except KeyError:
-                    raise ValidationError('Mountpoint not found in properties')
-                self._execute_pe_helper('create', recursive=recursive, mountpoint=properties['mountpoint'], name=name)
             else:
-                args = [self.__exe, 'create']
-
-                if recursive:
-                    args += ['-p']
-
-                args += [name]
-                print(f'Executing {args}')
+                log.info('Filesystem created successfully')
+                return self.get_dataset_info(name)
 
         elif dataset_type == DatasetType.VOLUME:
             assert size is not None

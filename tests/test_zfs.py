@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest  # type: ignore
 
 from simplezfs.exceptions import ValidationError
+from simplezfs.pe_helper import PEHelperBase
 from simplezfs.types import Dataset, DatasetType
 from simplezfs.zfs import ZFS, get_zfs
 from simplezfs.zfs_cli import ZFSCli
@@ -26,6 +27,19 @@ class TestZFS:
         zfs = ZFS(metadata_namespace='prod')
         zfs.metadata_namespace = 'pytest'
         assert zfs.metadata_namespace == 'pytest'
+
+    ##########################################################################
+
+    def test_get_pe_helper_default(self):
+        zfs = ZFS()
+        assert zfs.pe_helper is None
+
+    def test_get_pe_helper_set_valid(self):
+        zfs = ZFS()
+        assert zfs.pe_helper is None
+        zfs.pe_helper = PEHelperBase()
+        assert zfs.pe_helper is not None
+        assert isinstance(zfs.pe_helper, PEHelperBase)
 
     ##########################################################################
 

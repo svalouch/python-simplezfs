@@ -73,9 +73,11 @@ class TestZFSCli:
     ##########################################################################
 
     @patch('subprocess.run')
-    def test_get_dataset_info_happy_dataset(self, subproc):
+    @patch('os.path.exists')
+    def test_get_dataset_info_happy_dataset(self, exists, subproc):
         test_stdout = 'rpool/test	105M	142G	192K	none'
         subproc.return_value = subprocess.CompletedProcess(args=[], returncode=0, stdout=test_stdout, stderr='')
+        exists.return_value = False
 
         zfs = ZFSCli(zfs_exe='/bin/true')
         data = zfs.get_dataset_info('rpool/test')
@@ -84,13 +86,15 @@ class TestZFSCli:
         assert data.pool == 'rpool'
         assert data.parent == 'rpool'
         assert data.name == 'test'
-        assert data.type == DatasetType.VOLUME
+        assert data.type == DatasetType.FILESET
         assert data.full_path == 'rpool/test'
 
     @patch('subprocess.run')
-    def test_get_dataset_info_happy_pool(self, subproc):
+    @patch('os.path.exists')
+    def test_get_dataset_info_happy_pool(self, exists, subproc):
         test_stdout = 'rpool	105M	142G	192K	none'
         subproc.return_value = subprocess.CompletedProcess(args=[], returncode=0, stdout=test_stdout, stderr='')
+        exists.return_value = False
 
         zfs = ZFSCli(zfs_exe='/bin/true')
         data = zfs.get_dataset_info('rpool')
@@ -99,7 +103,7 @@ class TestZFSCli:
         assert data.pool == 'rpool'
         assert data.parent is None
         assert data.name == 'rpool'
-        assert data.type == DatasetType.VOLUME
+        assert data.type == DatasetType.FILESET
         assert data.full_path == 'rpool'
 
     ##########################################################################

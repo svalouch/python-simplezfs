@@ -138,13 +138,15 @@ class SudoPEHelper(PEHelperBase):
         '''
         Executes the given command through sudo. The call to sudo must not be included in ``cmd``.
         '''
-        args = [self.__exe] + cmd
+        args = [self.__exe, '-n'] + cmd
         if len(cmd) < 4:
             raise PEHelperException('Command suspicously short')
+        self.log.debug(f'About to run: {args}')
 
         proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
         if proc.returncode != 0 or len(proc.stderr) > 0:
-            raise PEHelperException(f'Error running command: {proc.stderr}')
+            raise PEHelperException(f'Error running command {" ".join(args)}: {proc.stderr}')
+        self.log.debug(f'pe helper command successful. stout: {proc.stdout}')
 
     def zfs_set_mountpoint(self, fileset: str, mountpoint: str) -> None:
         if '/' in fileset:

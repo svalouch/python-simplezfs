@@ -17,6 +17,7 @@ At the time of writing, the ``native``-API has not been implemented.
 
    quickstart
    security
+   pe_helper
    guide
    configuration
    properties_metadata

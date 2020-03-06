@@ -526,6 +526,11 @@ class ZFS:
         else:
             validate_pool_name(name)
 
+        if self.dataset_exists(name):
+            msg = 'Dataset already exists'
+            log.error(msg)
+            raise Exception(msg)
+
         # we can't create a toplevel element
         if '/' not in name and type in (DatasetType.FILESET, DatasetType.VOLUME):
             raise ValidationError('Can\'t create a toplevel fileset or volume, use ZPool instead.')

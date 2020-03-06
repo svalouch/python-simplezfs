@@ -9,7 +9,8 @@ import os
 import shutil
 import subprocess
 
-from .exceptions import DatasetNotFound, PEHelperException, PropertyNotFound, ValidationError
+from .exceptions import DatasetNotFound, PropertyNotFound, ValidationError
+from .pe_helper import PEHelperBase
 from .types import Dataset, DatasetType, Property, PropertySource
 from .validation import (
     validate_dataset_path,
@@ -17,7 +18,7 @@ from .validation import (
 )
 from .zfs import ZFS
 
-log = logging.getLogger('zfs.zfs_cli')
+log = logging.getLogger('simplezfs.zfs_cli')
 
 
 class ZFSCli(ZFS):
@@ -28,9 +29,10 @@ class ZFSCli(ZFS):
 
     If ``zfs_exe`` is supplied, it is assumed that it points to the path of the ``zfs(8)`` executable.
     '''
-    def __init__(self, *, metadata_namespace: Optional[str] = None, pe_helper: Optional[str] = None,
+    def __init__(self, *, metadata_namespace: Optional[str] = None, pe_helper: Optional[PEHelperBase] = None,
                  use_pe_helper: bool = False, zfs_exe: Optional[str] = None, **kwargs) -> None:
-        super().__init__(metadata_namespace=metadata_namespace)
+        super().__init__(metadata_namespace=metadata_namespace, pe_helper=pe_helper, use_pe_helper=use_pe_helper,
+                         **kwargs)
         self.find_executable(path=zfs_exe)
 
     def __repr__(self) -> str:
@@ -171,7 +173,7 @@ class ZFSCli(ZFS):
         log.debug(f'_get_property: about to run command: {args}')
         proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
         if proc.returncode != 0 or len(proc.stderr) > 0:
-            log.debug(f'_get_property: command failed, code={proc.returncode}, stderr="{proc.stderr}"')
+            log.debug(f'_get_property: command failed, code={proc.returncode}, stderr="{proc.stderr.strip()}"')
             self.handle_command_error(proc, dataset=dataset)
         name, prop_name, prop_value, prop_source = proc.stdout.strip().split('\t')
         if name != dataset:
@@ -252,10 +254,13 @@ class ZFSCli(ZFS):
             args += [name]
 
             log.debug(f'executing: {args}')
+            print(args)
             proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
             if proc.returncode != 0 or len(proc.stderr) > 0:
+                log.debug(f'Process died with returncode {proc.returncode} and stderr: "{proc.stderr.strip()}"')
                 # check if we tried something only root can do
                 if 'filesystem successfully created, but it may only be mounted by root' in proc.stderr:
+                    log.debug('Command output indicates that we need to run the PE Helper')
                     if self.use_pe_helper:
                         # The mountpoint property may be set, in which case we can run the PE helper. If it is not
                         # set, we'd need to compute it based on the parent, but for now we simply error out.
@@ -264,6 +269,8 @@ class ZFSCli(ZFS):
                             if self.pe_helper is not None:
                                 log.info(f'Fileset {name} was created, using pe_helper to set the mountpoint')
                                 self.pe_helper.zfs_set_mountpoint(name, mp)
+                                log.info(f'Fileset {name} created successfully (using pe_helper)')
+                                return self.get_dataset_info(name)
                             else:
                                 msg = 'Fileset created partially but no PE helper set'
                                 log.error(msg)
@@ -274,8 +281,16 @@ class ZFSCli(ZFS):
                             raise PermissionError(msg)
 
                     else:
-                        log.info(f'Fileset {name} was created, but could not be mounted due to not running as root')
+                        log.error(f'Fileset "{name}" was created, but could not be mounted due to lack of permissions.'
+                                  ' Please set a PE helper and call "set_mountpoint" with an explicit mountpoint to'
+                                  ' complete the action')
                         raise PermissionError(proc.stderr)
+                else:
+                    try:
+                        self.handle_command_error(proc)
+                    except PermissionError:
+                        log.error('Permission denied, please use "zfs allow"')
+                        raise
             else:
                 log.info('Filesystem created successfully')
                 return self.get_dataset_info(name)

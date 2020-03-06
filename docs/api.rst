@@ -57,6 +57,19 @@ Implementations
 .. autoclass:: simplezfs.zpool_native.ZPoolNative
    :members:
 
+
+Privilege escalation
+********************
+
+.. autoclass:: simplezfs.pe_helper.PEHelperBase
+   :members:
+
+.. autoclass:: simplezfs.pe_helper.ExternalPEHelper
+   :members:
+
+.. autoclass:: simplezfs.pe_helper.SudoPEHelper
+   :members:
+
 Validation functions
 ********************
 A set of validation functions exist to validate names and other data. All of them raise a

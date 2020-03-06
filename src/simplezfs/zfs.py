@@ -443,7 +443,7 @@ class ZFS:
            Please read the note in :func:`~simplezfs.ZFS.create_filesystem` for permission handling for filesystems.
            Generally, if the user does not have permission to set certain properties, the dataset may or may not have
            been created but is missing the properties. It is up to the user of the library to clean up after
-           catching a ``PermissionError`.
+           catching a :class:`+simplezfs.exceptions.PermissionError`.
 
         :param name: Name of the new volume (complete path in the ZFS hierarchy).
         :param size: The size (in `bytes`) for the new volume.

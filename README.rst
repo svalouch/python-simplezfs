@@ -34,7 +34,7 @@ The table gives a rough overview over features and their implementation state. F
 |       |            +-----------------+-----+--------+-----------+
 |       |            | Check existance | Yes | No     |           |
 |       |            +-----------------+-----+--------+-----------+
-|       |            | Create Fileset  | No  | No     | No        |
+|       |            | Create Fileset  | Yes | No     | Yes       |
 |       |            +-----------------+-----+--------+-----------+
 |       |            | Create Volume   | No  | No     |           |
 |       |            +-----------------+-----+--------+-----------+

@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional
 from .types import ZPoolHealth
 from .zpool import ZPool
 
-log = logging.getLogger('zfs.zpool_cli')
+log = logging.getLogger('simplezfs.zpool_cli')
 
 
 class ZPoolCli(ZPool):
@@ -50,7 +50,7 @@ class ZPoolCli(ZPool):
         Parses the output of ``zpool list -vPHp`` and emits a list of pool structures.
         '''
 
-        plog = logging.getLogger('zfs.zpool_cli.zpool_list_parser')
+        plog = logging.getLogger('simplezfs.zpool_cli.zpool_list_parser')
 
         output = dict()  # type: Dict[str, Dict]
         # holds the current pool name

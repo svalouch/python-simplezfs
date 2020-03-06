@@ -9,7 +9,7 @@ import logging
 from .types import Property
 from .zfs import ZFS
 
-log = logging.getLogger('zfs.zfs_native')
+log = logging.getLogger('simplezfs.zfs_native')
 
 
 class ZFSNative(ZFS):

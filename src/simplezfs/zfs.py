@@ -500,7 +500,7 @@ class ZFS:
 
         _metadata_properties = dict()  # type: Dict[str, str]
         if metadata_properties is not None:
-            for k, v in metadata_properties:
+            for k, v in metadata_properties.items():
                 # if the name has no namespace, add the default one if set
                 if ':' not in k:
                     if not self._metadata_namespace:

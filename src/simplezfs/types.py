@@ -103,6 +103,8 @@ class PropertySource(str, Enum):
     '''
     #: Property is at default
     DEFAULT = 'default'
+    #: Property was defined on the dataset itself
+    LOCAL = 'local'
     #: Property was inerited
     INHERITED = 'inherited'
     #: Property is temporary
@@ -126,6 +128,8 @@ class PropertySource(str, Enum):
         val = value.lower()
         if val == 'default':
             return PropertySource.DEFAULT
+        elif val == 'local':
+            return PropertySource.LOCAL
         elif val == 'inherited':
             return PropertySource.INHERITED
         elif val == 'temporary':

@@ -6,7 +6,7 @@ import stat
 import subprocess
 from typing import List, Optional
 
-from .exceptions import PEHelperException, ExternalPEHelperException
+from .exceptions import PEHelperException, ExternalPEHelperException, ValidationError
 from .validation import validate_dataset_path, validate_pool_name
 
 
@@ -33,6 +33,15 @@ class PEHelperBase:
     def zfs_set_mountpoint(self, fileset: str, mountpoint: str) -> None:
         '''
         Sets the ``mountpoint`` property of the given ``fileset``.
+
+        :raises ValidationError: If parameters do not validate.
+        :raises PEHelperException: If errors are encountered when running the helper.
+        '''
+        raise NotImplementedError(f'{self} has not implemented this function')
+
+    def zfs_destroy_dataset(self, dataset: str, recursive: bool, force_umount: bool):
+        '''
+        Destroy the given ``dataset``.
 
         :raises ValidationError: If parameters do not validate.
         :raises PEHelperException: If errors are encountered when running the helper.
@@ -156,3 +165,17 @@ class SudoPEHelper(PEHelperBase):
         # TODO validate mountpoint fs
 
         self._execute_cmd(['zfs', 'set', f'mountpoint={mountpoint}', fileset])
+
+    def zfs_destroy_dataset(self, dataset: str, recursive: bool, force_umount: bool) -> None:
+        if '/' not in dataset:
+            raise ValidationError('Can\'t remove the pool itself')
+        validate_dataset_path(dataset)
+
+        args = ['zfs', 'destroy', '-p']
+        if recursive:
+            args.append('-r')
+        if force_umount:
+            args.append('-f')
+        args.append(dataset)
+
+        self._execute_cmd(args)

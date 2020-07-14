@@ -323,3 +323,50 @@ class ZFSCli(ZFS):
     def create_bookmark(self, snapshot: str, name: str) -> Dataset:
         validate_dataset_path(snapshot)
         raise NotImplementedError()
+
+    def _destroy_dataset(self, dataset: str, *, recursive: bool = False, force_umount: bool = False) -> None:
+        args = [self.__exe, 'destroy', '-p']
+        if recursive:
+            args.append('-r')
+        if force_umount:
+            args.append('-f')
+        args.append(dataset)
+
+        log.debug(f'executing: {args}')
+        proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
+        if proc.returncode != 0 or len(proc.stderr) > 0:
+            log.debug(f'destroy_dataset: command failed, code={proc.returncode}, stderr="{proc.stderr}"')
+            if 'has children' in proc.stderr:
+                if recursive:
+                    log.error(f'Dataset {dataset} has children and recursive was given, please report this')
+                else:
+                    log.warning(f'Dataset {dataset} has children and thus cannot be destroyed without recursive=True')
+                    raise Exception
+            # two possible messaes: (zfs destroy -p -r [-f] $fileset_with_snapshots)
+            # * 'cannot destroy snapshots: permission denied'
+            # * 'umount: only root can use "--types" option'
+            # The latter seems to originate from having `destroy` and `mount` via `zfs allow`.
+            elif ('cannot destroy' in proc.stderr and 'permission denied' in proc.stderr) or \
+                    'only root can' in proc.stderr:
+                log.debug('Command output indicates that we need to run the PE Helper')
+                if self.use_pe_helper:
+                    if self.pe_helper is not None:
+                        log.info(f'Using pe_helper to remove {dataset}')
+                        self.pe_helper.zfs_destroy_dataset(dataset, recursive, force_umount)
+                        log.info(f'Dataset {dataset} destroyed (using pe_helper)')
+                    else:
+                        msg = 'Cannot destroy: No pe_helper set'
+                        log.error(msg)
+                        raise PermissionError(msg)
+                else:
+                    log.error(f'Dataset "{dataset}" can\'t be destroyed due to lack of permissions. Please set a'
+                              ' PE helper')
+                    raise PermissionError(proc.stderr)
+            else:
+                try:
+                    self.handle_command_error(proc)
+                except PermissionError:
+                    log.error('Permission denied, please use "zfs allow"')
+                    raise
+        else:
+            log.info('Dataset destroyed successfully')

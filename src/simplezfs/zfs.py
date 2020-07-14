@@ -651,7 +651,7 @@ class ZFS:
         '''
         raise NotImplementedError(f'{self} has not implemented this function')
 
-    def destroy_dataset(self, name: str, *, recursive: bool = False) -> None:
+    def destroy_dataset(self, dataset: str, *, recursive: bool = False, force_umount: bool = False) -> None:
         '''
         Destroy a dataset. This function tries to remove a dataset, optionally removing all children recursively if
         ``recursive`` is **True**. This function works on all types of datasets, ``fileset``, ``volume``, ``snapshot``
@@ -666,7 +666,30 @@ class ZFS:
 
         :note: This is a destructive process that can't be undone.
 
-        :param name: Name of the dataset to remove.
+        :param dataset: Name of the dataset to remove.
+        :param recursive: Whether to recursively delete child datasets such as snapshots.
+        :param force_umount: Forces umounting before destroying. Refer to ``ZFS(8)`` `zfs destroy` parameter ``-f``.
+        :raises ValidationError: If validating the parameters failed.
+        :raises DatasetNotFound: If the dataset can't be found.
+        '''
+        if '/' not in dataset:
+            raise ValidationError('Cannot destroy the pool using this function')
+        validate_dataset_path(dataset)
+
+        if not self.dataset_exists(dataset):
+            raise DatasetNotFound('The dataset could not be found')
+
+        self._destroy_dataset(dataset, recursive=recursive, force_umount=force_umount)
+
+    def _destroy_dataset(self, dataset: str, *, recursive: bool = False, force_umount: bool = False) -> None:
+        '''
+        Internal implementation of :func:`destroy_dataset`.
+
+        :param dataset: The name of the dataset to remove.
+        :param recursive: Whether to recursively delete child datasets such as snapshots.
+        :param force_umount: Forces umounting before destroying.
+        :raises ValidationError: If validating the parameters failed.
+        :raises DatasetNotFound: If the dataset can't be found.
         '''
         raise NotImplementedError(f'{self} has not implemented this function')
 

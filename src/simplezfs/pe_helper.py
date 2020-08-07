@@ -20,10 +20,10 @@ class PEHelperBase:
     def __repr__(self) -> str:
         return '<PEHelperBase>'
 
-    def zfs_mount(self, fileset: str, mountpoint: Optional[str] = None) -> None:
+    def zfs_mount(self, fileset: str) -> None:
         '''
-        Tries to mount ``fileset``. An optional ``mountpoint`` can be given, otherwise it relies on inheritance to set
-        the mountpoint. Note that some implementations may need an explicit mountpoint.
+        Tries to mount ``fileset`` to the location its ``mountpoint`` property points to. It does **not** check if the
+        fileset has a valid mountpoint property.
 
         :raises ValidationError: If parameters do not validate.
         :raises PEHelperException: If errors are encountered when running the helper.
@@ -156,6 +156,14 @@ class SudoPEHelper(PEHelperBase):
         if proc.returncode != 0 or len(proc.stderr) > 0:
             raise PEHelperException(f'Error running command {" ".join(args)}: {proc.stderr}')
         self.log.debug(f'pe helper command successful. stout: {proc.stdout}')
+
+    def zfs_mount(self, fileset: str) -> None:
+        if '/' in fileset:
+            validate_dataset_path(fileset)
+        else:
+            validate_pool_name(fileset)
+
+        self._execute_cmd(['zfs', 'mount', fileset])
 
     def zfs_set_mountpoint(self, fileset: str, mountpoint: str) -> None:
         if '/' in fileset:

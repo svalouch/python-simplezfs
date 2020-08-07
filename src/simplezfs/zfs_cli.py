@@ -267,8 +267,18 @@ class ZFSCli(ZFS):
                         if properties and 'mountpoint' in properties:
                             mp = properties['mountpoint']
                             if self.pe_helper is not None:
-                                log.info(f'Fileset {name} was created, using pe_helper to set the mountpoint')
-                                self.pe_helper.zfs_set_mountpoint(name, mp)
+                                test_prop = self.get_property(dataset=name, key='mountpoint', metadata=False)
+                                if test_prop.value == mp:
+                                    log.info(f'Fileset {name} was created with mountpoint set')
+                                else:
+                                    log.info(f'Fileset {name} was created, using pe_helper to set the mountpoint')
+                                    self.pe_helper.zfs_set_mountpoint(name, mp)
+                                test_prop = self.get_property(dataset=name, key='mounted', metadata=False)
+                                if test_prop.value == 'yes':
+                                    log.info(f'Fileset {name} is mounted')
+                                else:
+                                    log.info(f'Using pe_helper to mount fileset {name}')
+                                    self.pe_helper.zfs_mount(name)
                                 log.info(f'Fileset {name} created successfully (using pe_helper)')
                                 return self.get_dataset_info(name)
                             else:

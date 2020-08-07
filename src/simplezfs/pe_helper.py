@@ -148,7 +148,7 @@ class SudoPEHelper(PEHelperBase):
         Executes the given command through sudo. The call to sudo must not be included in ``cmd``.
         '''
         args = [self.__exe, '-n'] + cmd
-        if len(cmd) < 4:
+        if len(args) < 4:  # "sudo -n zfs mount fileset" is the shortest that makes sense to use with sudo
             raise PEHelperException('Command suspicously short')
         self.log.debug(f'About to run: {args}')
 

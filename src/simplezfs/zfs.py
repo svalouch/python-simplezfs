@@ -28,24 +28,26 @@ log = logging.getLogger('simplezfs.zfs')
 
 class ZFS:
     '''
-    ZFS interface class. This API generally covers only the zfs(8) tool, for zpool(8) please see :class:`~ZPool`.
+    ZFS interface class. This API generally covers only the zfs(8) tool, for zpool(8) please see
+    :class:`~simplezfs.zpool.ZPool`.
 
     **ZFS implementation**
 
     There are two ways how the API actually communicates with the ZFS filesystem:
 
-    * Using the CLI tools (:class:`~zfs.zfs_cli.ZFSCli`)
-    * Using the native API (:class:`~zfs.zfs_native.ZFSNative`)
+    * Using the CLI tools (:class:`~simplezfs.zfs_cli.ZFSCli`)
+    * Using the native API (:class:`~simplezfs.zfs_native.ZFSNative`)
 
-    You can select the API by either creating an instance of one of them or using :func:`~zfs.zfs.get_zfs`.
+    You can select the API by either creating an instance of one of them or using :func:`~simplezfs.zfs.get_zfs`.
 
 
     **Properties and Metadata**
 
-    The functions :func:`set_property`, :func:`get_property` and :func:`get_properties` wrap the ZFS get/set
-    functionality. To support so-called `user properties`, which are called `metadata` in this API, a default namespace
-    can be stored using `metadata_namespace` when instantiating the interface or by calling
-    :func:`set_metadata_namespace` at any time.
+    The functions :func:`~simplezfs.zfs.ZFS.set_property`, :func:`~simplezfs.zfs.ZFS.get_property` and
+    :func:`~simplezfs.zfs.ZFS.get_properties` wrap the ZFS get/set functionality. To support so-called
+    `user properties`, which are called `metadata` in this API, a default namespace can be stored using
+    `metadata_namespace` when instantiating the interface or by calling
+    :func:`~simplezfs.zfs.ZFS.set_metadata_namespace` at any time.
 
     :note: Not setting a metadata namespace means that one can't set or get metadata properties, unless the overwrite
         parameter for the get/set functions is used.

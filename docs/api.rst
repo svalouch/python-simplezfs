@@ -31,7 +31,7 @@ ZFS
 
 .. autofunction:: simplezfs.zfs.get_zfs
 
-.. autoclass:: simplezfs.ZFS
+.. autoclass:: simplezfs.zfs.ZFS
    :members:
 
 ZPool
@@ -39,7 +39,7 @@ ZPool
 
 .. autofunction:: simplezfs.zpool.get_zpool
 
-.. autoclass:: simplezfs.ZPool
+.. autoclass:: simplezfs.zpool.ZPool
    :members:
 
 Implementations

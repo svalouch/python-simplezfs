@@ -21,12 +21,12 @@ The library makes use of Pythons own `logging` functions. It defines a tree star
 
 * ``simplezfs`` (used as a common root only)
 
-  * ``simplezfs.zfs`` used by the :class:`~simplezfs.ZFS` parent class
+  * ``simplezfs.zfs`` used by the :class:`~simplezfs.zfs.ZFS` parent class
 
     * ``simplezfs.zfs.cli`` used by :class:`~simplezfs.zfs_cli.ZFSCli`
     * ``simplezfs.zfs.native`` used by :class:`~simplezfs.zfs_native.ZFSNative`
 
-  * ``simplezfs.zpool`` used by the :class:`~simplezfs.ZPool` parent class
+  * ``simplezfs.zpool`` used by the :class:`~simplezfs.zpool.ZPool` parent class
 
     * ``simplezfs.zpool.cli`` used by :class:`~simplezfs.zpool_cli.ZPoolCli`
     * ``simplezfs.zpool.native`` used by :class:`~simplezfs.zpool_native.ZPoolNative`

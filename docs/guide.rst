@@ -1,6 +1,6 @@
-###################
-Guide to python-zfs
-###################
+#########################
+Guide to python-simplezfs
+#########################
 
 Overview
 ********
@@ -12,8 +12,9 @@ collect actions and run them at the end, each action is carried out immediately.
 There are, however, two implementations of the functionality, using the ``cli`` tools and another one using the
 `libzfs_core` ``native`` library. We'll focus on the ``cli`` version here.
 
-Most of the functions raise a :class:`:: simplezfs.simplezfs.exceptions.ValidationError` with some helpful text if any of the data turns
-out not to be valid. For example, including invalid or reserved strings in the dataset name raises this exception.
+Most of the functions raise a :class:`simplezfs.exceptions.ValidationError` with some helpful text if any of the data
+turns out not to be valid. For example, including invalid or reserved strings in the dataset name raises this
+exception.
 
 Let's take a look at the two interfaces **ZFS** and **ZPool**...
 
@@ -25,8 +26,8 @@ Let's take a look at the two interfaces **ZFS** and **ZPool**...
 The ZFS interface
 *****************
 
-The :class:`:: simplezfs.simplezfs.zfs.ZFS` is the interface that corresponds to the ``zfs(8)`` program. It holds very little state,
-and it is recommended to get an instance through the function :func:`~zfs.zfs.get_zfs`. It selects the desired
+The :class:`simplezfs.zfs.ZFS` is the interface that corresponds to the ``zfs(8)`` program. It holds very little state,
+and it is recommended to get an instance through the function :func:`~simplezfs.zfs.get_zfs`. It selects the desired
 implementation and passes the required parameters. At the very least, it requires the ``api``-parameter, which is a
 string that selects the actual implementation, either ``cli`` or ``native``.
 
@@ -40,12 +41,12 @@ All our examples use the ``cli`` implementation for simplicity.
    <zfs.zfs_cli.ZFSCli object at 0x7f9f00faa9b0>
 
 For the remainder of this guide, we're going to assume that the variable ``zfs`` always holds a
-:class:`:: simplezfs.simplezfs.zfs_cli.ZFSCli` object.
+:class:`simplezfs.zfs_cli.ZFSCli` object.
 
 Viewing data
 ============
 To get an overview over the interface, we'll dive in and inspect our running system. Information is returned in the
-form if :class:`:: simplezfs.simplezfs.types.Dataset` instances, which is a named tuple containing a set of fields. For simplicity,
+form if :class:`simplezfs.types.Dataset` instances, which is a named tuple containing a set of fields. For simplicity,
 we'll output only a few of its fields to not clobber the screen, so don't be alarmed if there seems to be information
 missing: we just omitted the boring parts.
 
@@ -85,15 +86,15 @@ Creating something new
 
 There are functions for creating the four different types of datasets with nice interfaces:
 
-* :func:`~zfs.ZFS.create_fileset` for ordinary filesets, the most commonly used parameter is ``mountpoint`` for
-  telling it where it should be mounted.
-* :func:`~zfs.ZFS.create_volume` creates volumes, or ZVols, this features a parameter ``thin`` for creating thin-
-  provisioned or sparse volumes.
-* :func:`~zfs.ZFS.create_snapshot` creates a snapshot on a volume or fileset.
-* :func:`~zfs.ZFS.create_bookmark` creates a bookmark (on recent versions of ZFS).
+* :func:`~simplezfs.zfs.ZFS.create_fileset` for ordinary filesets, the most commonly used parameter is ``mountpoint``
+  for telling it where it should be mounted.
+* :func:`~simplezfs.zfs.ZFS.create_volume` creates volumes, or ZVols, this features a parameter ``thin`` for creating
+  thin-provisioned or sparse volumes.
+* :func:`~simplezfs.zfs.ZFS.create_snapshot` creates a snapshot on a volume or fileset.
+* :func:`~simplezfs.zfs.ZFS.create_bookmark` creates a bookmark (on recent versions of ZFS).
 
-These essentially call :func:`~zfs.ZFS.create_dataset`, which can be called directly, but its interface is not as
-nice as the special purpose create functions.
+These essentially call :func:`~simplezfs.zfs.ZFS.create_dataset`, which can be called directly, but its interface is
+not as nice as the special purpose create functions.
 
 
 Filesets
@@ -187,16 +188,16 @@ overwritten when working with the get and set functions. It is also possible not
 it to the functions every time.
 
 When you want to get or set a metadata property, set ``metadata`` to **True** when calling
-:func:`~zfs.ZFS.get_property` or :func:`~zfs.ZFS.set_property`. This will cause it to automatically prepend the
-namespace given on instantiation or to prepend the one given in the ``overwrite_metadata_namespace`` when calling the
-functions. The name of the property **must not** include the namespace, though it may contain ``:`` characters on its
-own, properties of the form ``zfs:is:cool`` are valid afterall. ``:`` characters are never valid in the context of
-native properties, and this is the reason why there is a separate switch to turn on metadata properties when using
-these functions.
+:func:`~simplezfs.zfs.ZFS.get_property` or :func:`~simplezfs.zfs.ZFS.set_property`. This will cause it to automatically
+prepend the namespace given on instantiation or to prepend the one given in the ``overwrite_metadata_namespace`` when
+calling the functions. The name of the property **must not** include the namespace, though it may contain ``:``
+characters on its own, properties of the form ``zfs:is:cool`` are valid afterall. ``:`` characters are never valid in
+the context of native properties, and this is the reason why there is a separate switch to turn on metadata properties
+when using these functions.
 
 Error handling
 --------------
-If a property name is not valid or the value exceeds certain bounds, a :class:`:: simplezfs.simplezfs.exceptions.ValidationError` is
+If a property name is not valid or the value exceeds certain bounds, a :class:`simplezfs.exceptions.ValidationError` is
 raised. This includes specifying a namespace in the property name if ``metadata`` is **False**, or exceeding the
 length allowed for a metadata property (8192 - 1 bytes).
 
@@ -222,8 +223,8 @@ namespace, it looks like this:
    >>> zfs.get_property('tank/system/root', 'do_backup', metdata=True)
    Property(key='do_backup', value='true', source='local', namespace='com.company')
 
-If you don't specify a namespace when calling :func:`~zfs.zfs.get_zfs` or if you want to use a different namespace for
-one call, specify the desired namespace in ``overwrite_metadata_namespace`` like so:
+If you don't specify a namespace when calling :func:`~simplezfs.zfs.get_zfs` or if you want to use a different
+namespace for one call, specify the desired namespace in ``overwrite_metadata_namespace`` like so:
 
 .. code-block:: pycon
 
@@ -264,10 +265,10 @@ Listing properties
 The ZPool interface
 *******************
 
-The :class:`:: simplezfs.simplezfs.zfs.ZPool` is the interface that corresponds to the ``zpool(8)`` program. It holds very little state,
-and it is recommended to get an instance through the function :func:`~simplezfs.zpool.get_zpool`. It selects the desired
-implementation and passes the required parameters. At the very least, it requires the ``api``-parameter, which is a
-string that selects the actual implementation, either ``cli`` or ``native``.
+The :class:`simplezfs.zfs.ZPool` is the interface that corresponds to the ``zpool(8)`` program. It holds very little
+state, and it is recommended to get an instance through the function :func:`~simplezfs.zpool.get_zpool`. It selects the
+desired implementation and passes the required parameters. At the very least, it requires the ``api``-parameter, which
+is a string that selects the actual implementation, either ``cli`` or ``native``.
 
 All our examples use the ``cli`` implementation for simplicity.
 
@@ -279,21 +280,21 @@ All our examples use the ``cli`` implementation for simplicity.
    <zfs.zpool_cli.ZPoolCli object at 0x7f67d5254940>
 
 For the remainder of this guide, we're going to assume that the variable ``zpool`` always holds a
-:class:`:: simplezfs.simplezfs.zpool_cli.ZPoolCli` object.
+:class:`simplezfs.zpool_cli.ZPoolCli` object.
 
 Error handling
 **************
 We kept the most important part for last: handling errors. The module defines its own hierarchy with
-:class:`:: simplezfs.simplezfs.exceptions.ZFSError` as toplevel exception. Various specific exceptions are based on ot. When working
-with :class:`:: simplezfs.simplezfs.zfs.ZFS`, the three most common ones are:
+:class:`simplezfs.exceptions.ZFSException` as toplevel exception. Various specific exceptions are based on ot. When
+working with :class:`simplezfs.zfs.ZFS`, the three most common ones are:
 
-* :class:`:: simplezfs.simplezfs.exceptions.ValidationError` which indicates that a name (e.g. dataset name) was invalid.
-* :class:`:: simplezfs.simplezfs.exceptions.DatasetNotFound` is, like FileNotFound in standard python, indicating that the dataset the
-  module was instructed to work on (e.g. get/set properties, destroy) was not present.
-* :class:`:: simplezfs.simplezfs.exceptions.PermissionError` is raised when the current users permissions are not sufficient to perform
-  the requested operation. While some actions can be delegated using ``zfs allow``, linux, for example, doesn't allow
-  non-root users to mount filesystems, which means that a non-root user may create filesets with a valid mountpoint
-  property, but it won't be mounted.
+* :class:`simplezfs.exceptions.ValidationError` which indicates that a name (e.g. dataset name) was invalid.
+* :class:`simplezfs.exceptions.DatasetNotFound` is, like FileNotFound in standard python, indicating that the dataset
+  the module was instructed to work on (e.g. get/set properties, destroy) was not present.
+* :class:`simplezfs.exceptions.PermissionError` is raised when the current users permissions are not sufficient to
+  perform the requested operation. While some actions can be delegated using ``zfs allow``, linux, for example, doesn't
+  allow non-root users to mount filesystems, which means that a non-root user may create filesets with a valid
+  mountpoint property, but it won't be mounted.
 
 Examples
 ========

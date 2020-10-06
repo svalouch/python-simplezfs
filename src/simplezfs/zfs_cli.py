@@ -138,14 +138,13 @@ class ZFSCli(ZFS):
             if dataset:
                 raise DatasetNotFound(f'Dataset "{dataset}" not found')
             raise DatasetNotFound('Dataset not found')
-        elif 'bad property list: invalid property' in proc.stderr:
+        if 'bad property list: invalid property' in proc.stderr:
             if dataset:
                 raise PropertyNotFound(f'invalid property on dataset {dataset}')
-            else:
-                raise PropertyNotFound('invalid property')
-        elif 'permission denied' in proc.stderr:
+            raise PropertyNotFound('invalid property')
+        if 'permission denied' in proc.stderr:
             raise PermissionError(proc.stderr)
-        elif 'filesystem successfully created, but it may only be mounted by root' in proc.stderr:
+        if 'filesystem successfully created, but it may only be mounted by root' in proc.stderr:
             raise PermissionError(proc.stderr)
         raise Exception(f'Command execution "{" ".join(proc.args)}" failed: {proc.stderr}')
 
@@ -281,10 +280,10 @@ class ZFSCli(ZFS):
                                     self.pe_helper.zfs_mount(name)
                                 log.info(f'Fileset {name} created successfully (using pe_helper)')
                                 return self.get_dataset_info(name)
-                            else:
-                                msg = 'Fileset created partially but no PE helper set'
-                                log.error(msg)
-                                raise PermissionError(msg)
+
+                            msg = 'Fileset created partially but no PE helper set'
+                            log.error(msg)
+                            raise PermissionError(msg)
                         else:
                             msg = 'Mountpoint property not set, can\'t run pe_helper'
                             log.error(msg)

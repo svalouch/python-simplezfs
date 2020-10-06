@@ -90,7 +90,7 @@ def validate_dataset_name(name: str, *, strict: bool = False) -> None:
     match = DATASET_NAME_RE.match(name)
     if not match:
         raise ValidationError('name contains disallowed characters')
-    elif strict and match.group('detail') is not None:
+    if strict and match.group('detail') is not None:
         raise ValidationError('snapshot or bookmark identifier are not allowed in strict mode')
 
 

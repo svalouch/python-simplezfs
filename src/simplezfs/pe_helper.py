@@ -1,10 +1,14 @@
 
+'''
+Privilege escalation helpers
+'''
+
 import logging
 import os
 import shutil
 import stat
 import subprocess
-from typing import List, Optional
+from typing import List
 
 from .exceptions import PEHelperException, ExternalPEHelperException, ValidationError
 from .validation import validate_dataset_path, validate_pool_name

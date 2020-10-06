@@ -14,7 +14,13 @@ log = logging.getLogger('simplezfs.zpool_cli')
 
 
 class ZPoolCli(ZPool):
+    '''
+    ZPOOL interface implementation using the zpool(8) command line utility. For documentation, please see the interface
+    :class:`~zfs.zpool.ZPool`. It is recommended to use :func:`~zfs.zfs.get_zpool` to obtain an instance using ``cli``
+    as api.
 
+    If ``zpool_exe`` is supplied, it is assumed that it points to the path to the ``zpool(8)`` executable.
+    '''
     def __init__(self, *, metadata_namespace: Optional[str] = None, pe_helper: Optional[str] = None,
                  use_pe_helper: bool = False, zpool_exe: Optional[str] = None, **kwargs) -> None:
         super().__init__(metadata_namespace=metadata_namespace, pe_helper=pe_helper, use_pe_helper=use_pe_helper)

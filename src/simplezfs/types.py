@@ -38,14 +38,13 @@ class DatasetType(str, Enum):
         val = value.lower()
         if val == 'fileset':
             return DatasetType.FILESET
-        elif val == 'volume':
+        if val == 'volume':
             return DatasetType.VOLUME
-        elif val == 'snapshot':
+        if val == 'snapshot':
             return DatasetType.SNAPSHOT
-        elif val == 'bookmark':
+        if val == 'bookmark':
             return DatasetType.BOOKMARK
-        else:
-            raise ValueError(f'Value {value} is not a valid DatasetType')
+        raise ValueError(f'Value {value} is not a valid DatasetType')
 
 
 class Dataset(NamedTuple):
@@ -128,18 +127,17 @@ class PropertySource(str, Enum):
         val = value.lower()
         if val == 'default':
             return PropertySource.DEFAULT
-        elif val == 'local':
+        if val == 'local':
             return PropertySource.LOCAL
-        elif val == 'inherited':
+        if val == 'inherited':
             return PropertySource.INHERITED
-        elif val == 'temporary':
+        if val == 'temporary':
             return PropertySource.TEMPORARY
-        elif val == 'received':
+        if val == 'received':
             return PropertySource.RECEIVED
-        elif val == 'none' or val == '-':
+        if val in ('none', '-'):
             return PropertySource.NONE
-        else:
-            raise ValueError(f'Value {value} is not a valid PropertySource')
+        raise ValueError(f'Value {value} is not a valid PropertySource')
 
 
 class Property(NamedTuple):
@@ -179,7 +177,7 @@ class VDevType(str, Enum):
 
 class ZPoolHealth(str, Enum):
     '''
-
+    Pool health.
     '''
     ONLINE = 'ONLINE'
     DEGRADED = 'DEGRADED'
@@ -204,17 +202,16 @@ class ZPoolHealth(str, Enum):
         val = value.lower()
         if val == 'online':
             return ZPoolHealth.ONLINE
-        elif val == 'degraded':
+        if val == 'degraded':
             return ZPoolHealth.DEGRADED
-        elif val == 'faulted':
+        if val == 'faulted':
             return ZPoolHealth.FAULTED
-        elif val == 'offline':
+        if val == 'offline':
             return ZPoolHealth.OFFLINE
-        elif val == 'unavail':
+        if val == 'unavail':
             return ZPoolHealth.UNAVAIL
-        elif val == 'removed':
+        if val == 'removed':
             return ZPoolHealth.REMOVED
-        elif val == 'avail':
+        if val == 'avail':
             return ZPoolHealth.AVAIL
-        else:
-            raise ValueError(f'Value {value} is not a valid ZPoolHealth')
+        raise ValueError(f'Value {value} is not a valid ZPoolHealth')

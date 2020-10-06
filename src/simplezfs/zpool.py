@@ -96,7 +96,7 @@ def get_zpool(api: str = 'cli', metadata_namespace: Optional[str] = None, **kwar
     if api == 'cli':
         from .zpool_cli import ZPoolCli
         return ZPoolCli(metadata_namespace=metadata_namespace, **kwargs)
-    elif api == 'native':
+    if api == 'native':
         from .zpool_native import ZPoolNative
         return ZPoolNative(metadata_namespace=metadata_namespace, **kwargs)
     raise NotImplementedError(f'The api "{api}" has not been implemented.')

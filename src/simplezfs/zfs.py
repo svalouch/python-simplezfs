@@ -176,7 +176,7 @@ class ZFS:
 
         try:
             self.set_property(fileset, 'mountpoint', mountpoint)
-        except PermissionError as e:
+        except PermissionError as exc:
             if self.pe_helper is not None:
                 real_use_pe_helper = use_pe_helper if use_pe_helper is not None else self.use_pe_helper
 
@@ -185,7 +185,7 @@ class ZFS:
                     self.pe_helper.zfs_set_mountpoint(fileset, mountpoint)
                 else:
                     log.error(f'Permission error when setting mountpoint for "{fileset}" and not using PE helper')
-                    raise e
+                    raise exc
             else:
                 log.error(f'Permission error when setting mountpoint for "{fileset}" and PE helper is not set')
 
@@ -421,6 +421,7 @@ class ZFS:
             dataset_type=DatasetType.FILESET,
             properties=properties,
             metadata_properties=metadata_properties,
+            recursive=recursive,
         )
 
     def create_volume(
@@ -537,26 +538,25 @@ class ZFS:
 
         # check the syntax of the properties
         if properties is not None:
-            for k, v in properties.items():
+            for k, val in properties.items():
                 validate_native_property_name(k)
-                validate_property_value(v)
+                validate_property_value(val)
 
         _metadata_properties = dict()  # type: Dict[str, str]
         if metadata_properties is not None:
-            for k, v in metadata_properties.items():
+            for k, val in metadata_properties.items():
                 # if the name has no namespace, add the default one if set
                 if ':' not in k:
                     if not self._metadata_namespace:
                         raise ValidationError(f'Metadata property {k} has no namespace and none is set globally')
-                    else:
-                        meta_name = f'{self._metadata_namespace}:{k}'
+                    meta_name = f'{self._metadata_namespace}:{k}'
                 else:
                     meta_name = k
                 _metadata_properties[meta_name] = metadata_properties[k]
                 validate_metadata_property_name(meta_name)
 
-                if type(v) != str:
-                    _metadata_properties[meta_name] = f'{v}'
+                if type(val) != str:
+                    _metadata_properties[meta_name] = f'{val}'
                 validate_property_value(_metadata_properties[meta_name])
 
         # sparse and size are reset for all but the VOLUME type
@@ -584,8 +584,8 @@ class ZFS:
                     raise ValidationError('Size must be specified for volumes')
                 try:
                     size = int(size)
-                except ValueError as e:
-                    raise ValidationError('Size is not an integer') from e
+                except ValueError as exc:
+                    raise ValidationError('Size is not an integer') from exc
 
                 if size < 1:
                     raise ValidationError('Size is too low')
@@ -593,8 +593,8 @@ class ZFS:
                 if properties and 'blocksize' in properties:
                     try:
                         blocksize = int(properties['blocksize'])
-                    except ValueError:
-                        raise ValidationError('blocksize must be an integer')
+                    except ValueError as exc:
+                        raise ValidationError('blocksize must be an integer') from exc
                     if blocksize < 2 or blocksize > 128 * 1024:  # zfs(8) version 0.8.1 lists 128KB as maximum
                         raise ValidationError('blocksize must be between 2 and 128kb (inclusive)')
                     if not ((blocksize & (blocksize - 1) == 0) and blocksize != 0):
@@ -706,7 +706,7 @@ class ZFS:
         if not self._pe_helper:
             raise ValidationError('PE Helper is not set')
         if action not in ('create', 'destroy', 'set_mountpoint'):
-            raise ValidationError(f'Invalid action')
+            raise ValidationError('Invalid action')
         validate_dataset_path(name)
 
         if action == 'create':
@@ -759,7 +759,7 @@ def get_zfs(api: str = 'cli', metadata_namespace: Optional[str] = None, **kwargs
     if api == 'cli':
         from .zfs_cli import ZFSCli
         return ZFSCli(metadata_namespace=metadata_namespace, **kwargs)
-    elif api == 'native':
+    if api == 'native':
         from .zfs_native import ZFSNative
         return ZFSNative(metadata_namespace=metadata_namespace, **kwargs)
     raise NotImplementedError(f'The api "{api}" has not been implemented.')

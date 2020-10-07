@@ -82,7 +82,7 @@ One can either get a concrete implementation by calling ``ZFSCli``/``ZFSNative``
 more conveniently use the functions ``get_zfs(implementation_name)`` or ``get_zpool(implementation_name)``.
 First, get an instance:
 
-.. code-block:: python-shell
+.. code-block:: pycon
 
     >>> from simplezfs import get_zfs
     >>> zfs = get_zfs('cli')  # or "native" for the native API

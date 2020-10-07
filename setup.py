@@ -7,9 +7,11 @@ with open('README.rst', 'r') as fh:
 setup(
     name='simplezfs',
     version='0.0.1',
-    author='Andreas Gonschorek, Stefan Valouch',
+    author='Stefan Valouch',
+    author_email='svalouch@valouch.com',
     description='Simple, low-level ZFS API',
     long_description=long_description,
+    long_description_content_type='text/x-rst',
     project_urls={
         'Documentation': 'https://simplezfs.readthedocs.io/',
         'Source': 'https://github.com/svalouch/python-simplezfs/',
@@ -21,6 +23,7 @@ setup(
     include_package_data=True,
     zip_safe=False,
     license='BSD-3-Clause',
+    url='https://github.com/svalouch/python-simplezfs',
     platforms='any',
     python_requires='>=3.6',
 

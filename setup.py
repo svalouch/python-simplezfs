@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from setuptools import setup  # type: ignore
 
-with open('README.rst', 'r') as fh:
+with open('README.rst', 'rt') as fh:
     long_description = fh.read()
 
 setup(

@@ -21,16 +21,15 @@ In this early stage, the native implementation has not been written.
 Status
 ******
 The table gives a rough overview over features and their implementation state. For the PE Helper, functions where it is
-of no use are left empty. Functions like creating/destroying volumes, snapshots have not been tested, but might work.
-Recursive is used to denote if it can destroy the dataset with dependent datasets, for example a fileset with its
-associated snapshots.
+of no use are left empty (use ``zfs allow`` for those). Recursive is used to denote if it can destroy the dataset with
+dependent datasets, for example a fileset with its associated snapshots.
 
 +-------+------------+------------------+-----+--------+-----------+-------------+
 | API   | Topic      | Feature          | CLI | Native | PE Helper | Recursive   |
 +=======+============+==================+=====+========+===========+=============+
 | ZFS   | Properties | Read native      | Yes | No     |           |             |
 |       |            +------------------+-----+--------+-----------+-------------+
-|       |            | Write native     | Yes | No     | No        |             |
+|       |            | Write native     | Yes | No     |           |             |
 |       |            +------------------+-----+--------+-----------+-------------+
 |       |            | Read metadata    | Yes | No     |           |             |
 |       |            +------------------+-----+--------+-----------+-------------+

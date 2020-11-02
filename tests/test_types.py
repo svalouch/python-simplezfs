@@ -3,7 +3,7 @@ from unittest.mock import patch
 import pytest
 
 from simplezfs.exceptions import ValidationError
-from simplezfs.types import Dataset, DatasetType
+from simplezfs.types import Dataset, DatasetType, PropertySource
 from simplezfs.validation import validate_dataset_path
 
 
@@ -39,3 +39,42 @@ class TestTypesDataset:
     def test_from_string_invalid(self, identifier):
         with pytest.raises(ValidationError):
             Dataset.from_string(identifier)
+
+
+class TestTypesPropertySource:
+    '''
+    Tests for simplezfs.types.PropertySource.
+    '''
+
+    @pytest.mark.parametrize('value,sourcetype', [
+        ('default', PropertySource.DEFAULT),
+        ('DEFault', PropertySource.DEFAULT),
+        ('local', PropertySource.LOCAL),
+        ('LOCAL', PropertySource.LOCAL),
+        ('inherited', PropertySource.INHERITED),
+        ('INHERITED', PropertySource.INHERITED),
+        ('inherited from somesource', PropertySource.INHERITED),
+        ('INHERITED FROM somesource', PropertySource.INHERITED),
+        ('temporary', PropertySource.TEMPORARY),
+        ('TEMPORARY', PropertySource.TEMPORARY),
+        (b'TEMPORARY', PropertySource.TEMPORARY),
+        ('received', PropertySource.RECEIVED),
+        ('RECEIVED', PropertySource.RECEIVED),
+        ('none', PropertySource.NONE),
+        ('NONE', PropertySource.NONE),
+        ('-', PropertySource.NONE),
+    ])
+    def test_from_string_valid(self, value: str, sourcetype: PropertySource) -> None:
+        '''
+        Happy path, test that it accepts known-good values.
+        '''
+        assert PropertySource.from_string(value) == sourcetype
+
+    @pytest.mark.parametrize('value', [' default', 'DEFAULT ', 'asdf', '', 'DEFAULT FROM asdf', 'inherited somesrc',
+                                       123])
+    def test_from_string_invalid(self, value: str) -> None:
+        '''
+        Test that it successfully reports an error when receiving invalid input.
+        '''
+        with pytest.raises(ValueError):
+            PropertySource.from_string(value)

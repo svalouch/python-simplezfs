@@ -5,7 +5,7 @@ Type declarations
 
 import os
 from enum import Enum, unique
-from typing import NamedTuple, Optional
+from typing import NamedTuple, Optional, Union
 
 from .validation import validate_dataset_path, validate_pool_name
 
@@ -114,7 +114,7 @@ class PropertySource(str, Enum):
     NONE = 'none'
 
     @staticmethod
-    def from_string(value: str) -> 'PropertySource':
+    def from_string(value: Union[bytes, str]) -> 'PropertySource':
         '''
         Helper to convert a string to an instance.
 
@@ -122,14 +122,20 @@ class PropertySource(str, Enum):
         :returns: The enum value.
         :raises ValueError: If the supplied value is not found in the enumeration.
         '''
-        if not isinstance(value, str):
+        if not isinstance(value, bytes) and not isinstance(value, str):
             raise ValueError('only string types allowed')
-        val = value.lower()
+
+        if isinstance(value, bytes):
+            val = value.decode('utf-8').lower()
+        else:
+            val = value.lower()
+
         if val == 'default':
             return PropertySource.DEFAULT
         if val == 'local':
             return PropertySource.LOCAL
-        if val == 'inherited':
+        # support single word and "inherited from YXZ"
+        if val == 'inherited' or val.startswith('inherited from '):
             return PropertySource.INHERITED
         if val == 'temporary':
             return PropertySource.TEMPORARY
@@ -137,7 +143,7 @@ class PropertySource(str, Enum):
             return PropertySource.RECEIVED
         if val in ('none', '-'):
             return PropertySource.NONE
-        raise ValueError(f'Value {value} is not a valid PropertySource')
+        raise ValueError(f'Value {val} is not a valid PropertySource')
 
 
 class Property(NamedTuple):

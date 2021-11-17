@@ -6,7 +6,7 @@ with open('README.rst', 'rt') as fh:
 
 setup(
     name='simplezfs',
-    version='0.0.2',
+    version='0.0.3',
     author='Stefan Valouch',
     author_email='svalouch@valouch.com',
     description='Simple, low-level ZFS API',
@@ -54,5 +54,6 @@ setup(
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
     ],
 )

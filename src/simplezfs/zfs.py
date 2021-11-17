@@ -4,6 +4,7 @@ ZFS frontend API
 '''
 
 import logging
+import warnings
 from typing import Dict, List, Optional, Union
 
 from .exceptions import (
@@ -14,7 +15,7 @@ from .exceptions import (
     ValidationError,
 )
 from .pe_helper import PEHelperBase
-from .types import Dataset, DatasetType, Property
+from .types import Dataset, DatasetType, PEHelperMode, Property
 from .validation import (
     validate_dataset_path,
     validate_metadata_property_name,
@@ -55,19 +56,32 @@ class ZFS:
     The parameter ``use_pe_helper`` is used to control whether the ``pe_helper`` will be used when performing actions
     that require elevated permissions. It can be changed at anytime using the ``use_pe_helper`` property.
 
+    .. versionchanged:: 0.0.3
+       ``use_pe_helper`` became ``pe_helper_mode``
+
     :param metadata_namespace: Default namespace
     :param pe_helper: Privilege escalation (PE) helper to use for actions that require elevated privileges (root).
-    :param use_pe_helper: Whether to use the PE helper for creating and (u)mounting.
+    :param pe_helper_mode: How and when to use the PEHelper. Defaults to not using it at all.
     :param kwargs: Extra arguments, ignored
     '''
     def __init__(self, *, metadata_namespace: Optional[str] = None, pe_helper: Optional[PEHelperBase] = None,
-                 use_pe_helper: bool = False, **kwargs) -> None:
+                 pe_helper_mode: PEHelperMode = PEHelperMode.DO_NOT_USE, **kwargs) -> None:
         self.metadata_namespace = metadata_namespace
         self.pe_helper = pe_helper
-        self.use_pe_helper = use_pe_helper
+        self.pe_helper_mode = pe_helper_mode
+
+        # TODO remove this in 0.0.4
+        if 'use_pe_helper' in kwargs:
+            msg = 'Parameter "use_pe_helper" is deprecated in favor of "pe_helper_mode" and will be ignored from ' \
+                'version 0.0.4 onwards.'
+            if bool(kwargs['use_pe_helper']) and pe_helper_mode == PEHelperMode.DO_NOT_USE:
+                msg += ' Setting pe_helper_mode=PEHelperMode.USE_IF_REQUIRED to restore previous behavior.'
+                self.pe_helper_mode = PEHelperMode.USE_IF_REQUIRED
+
+            warnings.warn(msg, DeprecationWarning)
 
     def __repr__(self) -> str:
-        return f'<ZFS(pe_helper="{self._pe_helper}", use_pe_helper="{self._use_pe_helper}")>'
+        return f'<ZFS(pe_helper="{self._pe_helper}", pe_helper_mode="{self._pe_helper_mode}")>'
 
     @property
     def metadata_namespace(self) -> Optional[str]:
@@ -96,27 +110,70 @@ class ZFS:
     def pe_helper(self, helper: Optional[PEHelperBase]) -> None:
         '''
         Sets the privilege escalation (PE) helper. Supply ``None`` to unset it.
-
-        :raises FileNotFoundError: if the script can't be found or is not executable.
         '''
         if helper is None:
             log.debug('PE helper is None')
         self._pe_helper = helper
 
+    # TODO remove this in 0.0.4
     @property
     def use_pe_helper(self) -> bool:
         '''
         Returns whether the privilege escalation (PE) helper should be used. If the helper has not been set, this
         property evaluates to ``False``.
-        '''
-        return self._pe_helper is not None and self._use_pe_helper
 
+        .. deprecated:: 0.0.3
+           Use :func:`~simplezfs.zfs.pe_helper_mode` instead. Returns whether the helper mode is **not** set to
+           ``PEHelperMode.DO_NOT_USE`` if the helper is set.
+
+           This property will be removed in 0.0.4!
+        '''
+        warnings.warn('Property "use_pe_helper" is deprecated in favor of "pe_helper_mode" and will be removed in '
+                      '0.0.4', DeprecationWarning)
+        return self._pe_helper is not None and self._pe_helper_mode != PEHelperMode.DO_NOT_USE
+
+    # TODO remove this in 0.0.4
     @use_pe_helper.setter
     def use_pe_helper(self, use: bool) -> None:
         '''
         Enable or disable using the privilege escalation (PE) helper.
+
+        .. deprecated:: 0.0.3
+           Use :func:`~simplezfs.zfs.pe_helper_mode` instead. If set to ``False``, sets the mode to
+           ``PEHelperMode.DO_NOT_USE``, ``True`` sets to ``PEHelperMode.USE_IF_NEEDED`` unless it is set to
+           ``PEHelperMode.USE_PROACTIVE`` already, in which case it will do nothing.
+
+           This property will be removed in 0.0.4!
         '''
-        self._use_pe_helper = use
+        if use:
+            if self.pe_helper_mode == PEHelperMode.DO_NOT_USE:
+                self.pe_helper_mode = PEHelperMode.USE_PROACTIVE
+        else:
+            self.pe_helper_mode = PEHelperMode.DO_NOT_USE
+
+        warnings.warn('Property "use_pe_helper" is deprecated in favor of "pe_helper_mode" and will be removed in '
+                      '0.0.4', DeprecationWarning)
+
+    @property
+    def pe_helper_mode(self) -> PEHelperMode:
+        '''
+        Returns whether the privilege escalation (PE) helper should be used and when. If the helper has not been set,
+        this property evaluates to ``False``.
+
+        .. versionadded:: 0.0.3
+        '''
+        if self._pe_helper is None:
+            return PEHelperMode.DO_NOT_USE
+        return self._pe_helper_mode
+
+    @pe_helper_mode.setter
+    def pe_helper_mode(self, mode: PEHelperMode) -> None:
+        '''
+        Sets the privilege escalation (PE) helper mode.
+
+        .. versionadded:: 0.0.3
+        '''
+        self._pe_helper_mode = mode
 
     def dataset_exists(self, name: str) -> bool:
         '''
@@ -155,41 +212,51 @@ class ZFS:
         '''
         raise NotImplementedError(f'{self} has not implemented this function')
 
-    def set_mountpoint(self, fileset: str, mountpoint: str, *, use_pe_helper: Optional[bool] = None) -> None:
+    def set_mountpoint(self, fileset: str, mountpoint: str, *, pe_helper_mode: Optional[PEHelperMode] = None) -> None:
         '''
         Sets or changes the mountpoint property of a fileset. While this can be achieved using the generic function
         :func:`~ZFS.set_property`, it allows for using the privilege escalation (PE) helper if so desired.
 
-        The argument ``use_pe_helper`` can overwrite the property of the same name. If the argument is None, the
+        The argument ``pe_helper_mode`` can overwrite the property of the same name. If the argument is None, the
         properties value will be assumed. In any case, the function attempts to set the property on its own first. If
         that fails, it evaluates if the PE helper should be used, and will error out if it should be used but has not
         been set. If the helper fails, a :class:`~simplezfs.exceptions.PEHelperException` is raised.
 
         :param fileset: The fileset to modify.
         :param mountpoint: The new value for the ``mountpoint`` property.
-        :param use_pe_helper: Overwrite the default for using the privilege escalation (PE) helper for this task.
+        :param pe_helper_mode: Overwrite the default for using the privilege escalation (PE) helper for this task.
             ``None`` (default) uses the default setting. If the helper is not set, it is not used.
         :raises DatasetNotFound: if the fileset could not be found.
         :raises ValidationError: if validating the parameters failed.
         '''
+        if '/' not in fileset:
+            validate_pool_name(fileset)
+        else:
+            validate_dataset_path(fileset)
+        validate_property_value(mountpoint)
+
         ds_type = self.get_property(fileset, 'type')
         if ds_type != 'filesystem':
-            raise ValidationError(f'Dataset is not a filesystem and can\'t have its mountpoint set')
+            raise ValidationError('Dataset is not a filesystem and can\'t have its mountpoint set')
 
-        try:
-            self.set_property(fileset, 'mountpoint', mountpoint)
-        except PermissionError as exc:
-            if self.pe_helper is not None:
-                real_use_pe_helper = use_pe_helper if use_pe_helper is not None else self.use_pe_helper
+        real_pe_helper_mode = pe_helper_mode if pe_helper_mode is not None else self.pe_helper_mode
+        if self.pe_helper is not None and real_pe_helper_mode == PEHelperMode.USE_PROACTIVE:
+            log.info('Proactively calling PE helper for setting the mountpoint for "%s"', fileset)
+            self.pe_helper.zfs_set_mountpoint(fileset, mountpoint)
+        else:
+            try:
+                self.set_property(fileset, 'mountpoint', mountpoint)
+            except PermissionError as exc:
+                if self.pe_helper is not None:
 
-                if real_use_pe_helper:
-                    log.info(f'Permission error when setting mountpoint for "{fileset}", retrying using PE helper')
-                    self.pe_helper.zfs_set_mountpoint(fileset, mountpoint)
+                    if real_pe_helper_mode == PEHelperMode.USE_IF_REQUIRED:
+                        log.info(f'Permission error when setting mountpoint for "{fileset}", retrying using PE helper')
+                        self.pe_helper.zfs_set_mountpoint(fileset, mountpoint)
+                    else:
+                        log.error(f'Permission error when setting mountpoint for "{fileset}" and not using PE helper')
+                        raise exc
                 else:
-                    log.error(f'Permission error when setting mountpoint for "{fileset}" and not using PE helper')
-                    raise exc
-            else:
-                log.error(f'Permission error when setting mountpoint for "{fileset}" and PE helper is not set')
+                    log.error(f'Permission error when setting mountpoint for "{fileset}" and PE helper is not set')
 
     def set_property(self, dataset: str, key: str, value: str, *, metadata: bool = False,
                      overwrite_metadata_namespace: Optional[str] = None) -> None:
@@ -463,7 +530,7 @@ class ZFS:
         '''
         if blocksize is not None:
             if properties is None:
-                properties = dict()
+                properties = {}
             properties['blocksize'] = f'{blocksize}'
         return self.create_dataset(
             name,
@@ -544,7 +611,7 @@ class ZFS:
                 validate_native_property_name(k)
                 validate_property_value(val)
 
-        _metadata_properties = dict()  # type: Dict[str, str]
+        _metadata_properties: Dict[str, str] = {}
         if metadata_properties is not None:
             for k, val in metadata_properties.items():
                 # if the name has no namespace, add the default one if set
@@ -557,14 +624,14 @@ class ZFS:
                 _metadata_properties[meta_name] = metadata_properties[k]
                 validate_metadata_property_name(meta_name)
 
-                if type(val) != str:
+                if not isinstance(val, str):
                     _metadata_properties[meta_name] = f'{val}'
                 validate_property_value(_metadata_properties[meta_name])
 
         # sparse and size are reset for all but the VOLUME type
         if dataset_type != DatasetType.VOLUME:
             if sparse:
-                log.warning('Ignoring "sparse" it is only valid for volumes')
+                log.warning('Ignoring "sparse", it is only valid for volumes')
                 sparse = False
             if size:
                 log.warning('Ignoring "size", it is only valid for volumes')
@@ -601,8 +668,10 @@ class ZFS:
                         raise ValidationError('blocksize must be between 2 and 128kb (inclusive)')
                     if not ((blocksize & (blocksize - 1) == 0) and blocksize != 0):
                         raise ValidationError('blocksize must be a power of two')
+                return self._create_volume(name, properties, _metadata_properties, sparse, size, recursive)
+            return self._create_fileset(name, properties, _metadata_properties, recursive)
 
-        elif dataset_type == DatasetType.SNAPSHOT:
+        if dataset_type == DatasetType.SNAPSHOT:
             if recursive:
                 log.warning('"recursive" set for snapshot or bookmark, ignored')
                 recursive = False
@@ -619,15 +688,11 @@ class ZFS:
 
             # TODO
 
-        return self._create_dataset(name, dataset_type=dataset_type, properties=properties,
-                                    metadata_properties=_metadata_properties, sparse=sparse, size=size,
-                                    recursive=recursive)
+            return self._create_snapshot(name, properties, _metadata_properties, recursive)
 
-    def _create_dataset(
+    def _create_volume(
         self,
         name: str,
-        *,
-        dataset_type: DatasetType,
         properties: Dict[str, str] = None,
         metadata_properties: Dict[str, str] = None,
         sparse: bool = False,
@@ -635,18 +700,61 @@ class ZFS:
         recursive: bool = False,
     ) -> Dataset:
         '''
-        Actual implementation of :func:`create_dataset`.
+        Actual implementation of :func:`create_volume`.
 
-        :param name: The name of the new dataset. This includes the full path, e.g. ``tank/data/newdataset``.
-        :param dataset_type: Indicates the type of the dataset to be created.
-        :param properties: A dict containing the properties for this new dataset. These are the native properties.
+        :param name: The name of the new volume. This includes the full path, e.g. ``tank/data/newvolume``.
+        :param properties: A dict containing the properties for this new volume. These are the native properties.
         :param metadata_properties: The metadata properties to set. To use a different namespace than the default (or
             when no default is set), use the ``namespace:key`` format for the dict keys.
         :param sparse: For volumes, specifies whether a sparse (thin provisioned) or normal (thick provisioned) volume
             should be created.
-        :param size: For volumes, specifies the size in bytes.
+        :param size: Size in bytes.
         t:param recursive: Recursively create the parent fileset. Refer to the ZFS documentation about the `-p`
-            parameter for ``zfs create``. This does not apply to types other than volumes or filesets.
+            parameter for ``zfs create``.
+        :raises ValidationError: If validating the parameters failed.
+        :raises DatasetNotFound: If the dataset can't be found (snapshot, bookmark) or the parent dataset can't be
+            found (fileset, volume with ``recursive = False``).
+        '''
+        raise NotImplementedError(f'{self} has not implemented this function')
+
+    def _create_fileset(
+        self,
+        name: str,
+        properties: Dict[str, str] = None,
+        metadata_properties: Dict[str, str] = None,
+        recursive: bool = False
+    ) -> Dataset:
+        '''
+        Actual implementation of :func:`create_fileset`.
+
+        :param name: The name of the new volume. This includes the full path, e.g. ``tank/data/newfileset``.
+        :param properties: A dict containing the properties for this new volume. These are the native properties.
+        :param metadata_properties: The metadata properties to set. To use a different namespace than the default (or
+            when no default is set), use the ``namespace:key`` format for the dict keys.
+        :param recursive: Recursively create the parent fileset. Refer to the ZFS documentation about the `-p`
+            parameter for ``zfs create``.
+        :raises ValidationError: If validating the parameters failed.
+        :raises DatasetNotFound: If the dataset can't be found (snapshot, bookmark) or the parent dataset can't be
+            found (fileset, volume with ``recursive = False``).
+        '''
+        raise NotImplementedError(f'{self} has not implemented this function')
+
+    def _create_snapshot(
+        self,
+        name: str,
+        properties: Dict[str, str] = None,
+        metadata_properties: Dict[str, str] = None,
+        recursive: bool = False
+    ) -> Dataset:
+        '''
+        Actual implementation of :func:`create_snapshot`.
+
+        :param name: The name of the new snapshot. This includes the full path, e.g. ``tank/data/dataset@snap``.
+        :param properties: A dict containing the properties for this new volume. These are the native properties.
+        :param metadata_properties: The metadata properties to set. To use a different namespace than the default (or
+            when no default is set), use the ``namespace:key`` format for the dict keys.
+        :param recursive: Recursively create the parent fileset. Refer to the ZFS documentation about the `-r`
+            parameter for ``zfs snapshot``.
         :raises ValidationError: If validating the parameters failed.
         :raises DatasetNotFound: If the dataset can't be found (snapshot, bookmark) or the parent dataset can't be
             found (fileset, volume with ``recursive = False``).
@@ -695,13 +803,39 @@ class ZFS:
         '''
         raise NotImplementedError(f'{self} has not implemented this function')
 
+    # def mount_fileset(self, fileset: str) -> None:
+    #     '''
+    #     Mounts the fileset.
+
+    #     :param fileset: The name of the fileset to mount.
+    #     :raise ValidationError: If dataset pointed to by ``fileset`` is not a fileset or has no ``mountpoint`` property
+    #     :raise DatasetNotFound: If the fileset can't be found.
+    #     '''
+    #     self._mount_umount_fileset(fileset, mount=True)
+
+    # def umount_fileset(self, fileset: str) -> None:
+    #     '''
+    #     Umounts the fileset.
+
+    #     :param fileset: The name of the fileset to umount.
+    #     :raise ValidationError: If the dataset pointed to by ``fileset`` is not a fileset.
+    #     :raise DatasetNotFound: If the fileset can't be found.
+    #     '''
+    #     self._mount_umount_fileset(fileset, mount=False)
+
+    # def _mount_umount_fileset(self, fileset: str, mount: bool) -> None:
+    #     '''
+    #     Internal implementation of :func:`~simplezfs.zfs.mount_fileset` and :func:`~simplezfs.zfs.umount_fileset`.
+    #     '''
+    #     raise NotImplementedError(f'{self} has not implemented this function')
+
     def _execute_pe_helper(self, action: str, name: str, mountpoint: Optional[str] = None):
         '''
         Runs the specified action through the PE helper.
 
-        :param action: The action to perform. Valid are: "create", "destroy", "set_mountpoint".
+        :param action: The action to perform. Valid are: "create", "destroy", "set_mountpoint", "mount", "umount".
         :param name: The name of the dataset to operate on.
-        :param mountpoint: The mountpoint for create/set_mountpoint actions.
+        :param mountpoint: The mountpoint for create/set_mountpoint actions, ignored otherwise.
         :raises ValidationError: If the parameters are invalid.
         :raises PEHelperException: If the PE helper reported an error.
         '''
@@ -719,10 +853,12 @@ class ZFS:
         elif action == 'destroy':
             cmd = [self._pe_helper, 'destroy', name]
         elif action == 'set_mountpoint':
-            if mountpoint is None:
+            if mountpoint is None or mountpoint != '':
                 raise ValidationError(f'Mountpoint has to be set for action "{action}"')
             # TODO validate filesystem path
             cmd = [self._pe_helper, 'set_mountpoint', name, mountpoint]
+        elif action in ('mount', 'umount'):
+            cmd = [self._pe_helper, action, name]
         else:
             raise ValidationError('Invalid action')
 

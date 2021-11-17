@@ -95,6 +95,18 @@ class Dataset(NamedTuple):
         return Dataset(name=ds_name, parent=ds_parent, type=ds_type, full_path=value, pool=ds_pool)
 
 
+class PEHelperMode(Enum):
+    '''
+    Modes for chosing whether to use the PEHelper and how.
+    '''
+    #: Do not use the PEHelper
+    DO_NOT_USE = 0
+    #: Use if ZFS indicates it is required
+    USE_IF_REQUIRED = 1
+    #: Use proactively for actions known to require it
+    USE_PROACTIVE = 2
+
+
 @unique
 class PropertySource(str, Enum):
     '''

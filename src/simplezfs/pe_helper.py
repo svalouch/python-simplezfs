@@ -163,12 +163,12 @@ class SudoPEHelper(PEHelperBase):
         args = [self.__exe, '-n'] + cmd
         if len(args) < 4:  # "sudo -n zfs mount fileset" is the shortest that makes sense to use with sudo
             raise PEHelperException('Command suspicously short')
-        self.log.debug(f'About to run: {args}')
+        self.log.debug('About to run: %s', args)
 
         proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
         if proc.returncode != 0 or len(proc.stderr) > 0:
             raise PEHelperException(f'Error running command {" ".join(args)}: {proc.stderr}')
-        self.log.debug(f'pe helper command successful. stout: {proc.stdout}')
+        self.log.debug('pe helper command successful. stdout: %s', proc.stdout)
 
     def zfs_mount(self, fileset: str) -> None:
         if '/' in fileset:

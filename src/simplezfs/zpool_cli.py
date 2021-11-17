@@ -7,7 +7,9 @@ import logging
 import shutil
 
 from typing import Any, Dict, Optional
-from .types import ZPoolHealth
+
+from .pe_helper import PEHelperBase
+from .types import PEHelperMode, ZPoolHealth
 from .zpool import ZPool
 
 log = logging.getLogger('simplezfs.zpool_cli')
@@ -21,10 +23,15 @@ class ZPoolCli(ZPool):
 
     If ``zpool_exe`` is supplied, it is assumed that it points to the path to the ``zpool(8)`` executable.
     '''
-    def __init__(self, *, metadata_namespace: Optional[str] = None, pe_helper: Optional[str] = None,
-                 use_pe_helper: bool = False, zpool_exe: Optional[str] = None, **kwargs) -> None:
-        super().__init__(metadata_namespace=metadata_namespace, pe_helper=pe_helper, use_pe_helper=use_pe_helper)
+    def __init__(self, *, metadata_namespace: Optional[str] = None, pe_helper: Optional[PEHelperBase] = None,
+                 pe_helper_mode: PEHelperMode = PEHelperMode.DO_NOT_USE, zpool_exe: Optional[str] = None,
+                 **kwargs) -> None:
+        super().__init__(metadata_namespace=metadata_namespace, pe_helper=pe_helper, pe_helper_mode=pe_helper_mode,
+                         **kwargs)
         self.find_executable(path=zpool_exe)
+
+    def __repr__(self) -> str:
+        return f'<ZPoolCLI(exe="{self.__exe}", pe_helper="{self._pe_helper}", pe_helper_mode="{self._pe_helper_mode}")>'
 
     def find_executable(self, path: str = None) -> None:
         '''
@@ -32,7 +39,7 @@ class ZPoolCli(ZPool):
         the PATH to find it. It does not fall back to searching in PATH if ``path`` does not point to an exeuctable.
         An exception is raised if no executable could be found.
 
-        :param path: Path to an executable to use instead of searching through $PATH.
+        :param path: Path to the executable, used blindly if supplied.
         :raises OSError: If the executable could not be found.
         '''
         exe_path = path
@@ -40,14 +47,14 @@ class ZPoolCli(ZPool):
             exe_path = shutil.which('zpool')
 
         if not exe_path:
-            raise OSError('Could not find the executable')
+            raise OSError('Could not find executable')
 
         self.__exe = exe_path
 
     @property
     def executable(self) -> str:
         '''
-        Returns the executable found by find_executable.
+        Returns the zpool executable that was found by find_executable.
         '''
         return self.__exe
 

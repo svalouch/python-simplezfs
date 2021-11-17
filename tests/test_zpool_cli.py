@@ -39,7 +39,7 @@ class TestZPoolCli:
 
         with pytest.raises(OSError) as excinfo:
             ZPoolCli()
-        assert 'not find the executable' in str(excinfo.value)
+        assert 'not find executable' in str(excinfo.value)
 
     ##########################################################################
 

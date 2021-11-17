@@ -34,6 +34,15 @@ class PEHelperBase:
         '''
         raise NotImplementedError(f'{self} has not implemented this function')
 
+    def zfs_umount(self, fileset: str) -> None:
+        '''
+        Tries to umount ``fileset``. It does **not** check if the fileset is mounted.
+
+        :raises ValidationError: If parameters do not validate.
+        :raises PEHelperException: If errors are encountered when running the helper.
+        '''
+        raise NotImplementedError(f'{self} has not implemented this function')
+
     def zfs_set_mountpoint(self, fileset: str, mountpoint: str) -> None:
         '''
         Sets the ``mountpoint`` property of the given ``fileset``.
@@ -168,6 +177,14 @@ class SudoPEHelper(PEHelperBase):
             validate_pool_name(fileset)
 
         self._execute_cmd(['zfs', 'mount', fileset])
+
+    def zfs_umount(self, fileset: str) -> None:
+        if '/' in fileset:
+            validate_dataset_path(fileset)
+        else:
+            validate_pool_name(fileset)
+
+        self._execute_cmd(['zfs', 'umount', fileset])
 
     def zfs_set_mountpoint(self, fileset: str, mountpoint: str) -> None:
         if '/' in fileset:

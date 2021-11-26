@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Release 0.0.4 - Unreleased
 
-## Release 0.0.3 - Unreleased
+## Release 0.0.3 - 2021-11-26
 
 **Features**
 
@@ -24,6 +24,12 @@ All notable changes to this project will be documented in this file.
 - Fix pytest deprecation warning
 
 
-## Release 0.0.2
+## Release 0.0.2 - 2020-11-03
+
+**Bugfixes**
+
+- `PropertySource` now propertly handles `inherited` properties which specify the dataset they inherit their value from.
+
+## Release 0.0.1 - 2020-10-07
 
 It spawned like this out of thin air.

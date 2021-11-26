@@ -23,11 +23,5 @@ At the time of writing, the ``native``-API has not been implemented.
    properties_metadata
    testing
    api
+   CHANGELOG
 
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

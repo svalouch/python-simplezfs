@@ -27,20 +27,23 @@ setup(
     platforms='any',
     python_requires='>=3.6',
 
-    # install_requires=[
-    # ],
+    install_requires=[
+        'typing_extensions ; python_version < "3.8"',
+    ],
 
     extras_require={
         'tests': [
-            'flake8',
             'mypy',
+            'pylint',
             'pytest',
             'pytest-cov',
+            'pytest-pylint',
         ],
         'docs': [
             'Sphinx>=2.0',
             'sphinx-autodoc-typehints',
             'sphinx-rtd-theme',
+            'recommonmark>=0.5.0',
         ],
     },
 

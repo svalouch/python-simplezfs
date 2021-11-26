@@ -8,6 +8,9 @@ Enumerations
 .. autoclass:: simplezfs.types.DatasetType
    :members:
 
+.. autoclass:: simplezfs.types.PEHelperMode
+   :members:
+
 .. autoclass:: simplezfs.types.PropertySource
    :members:
 

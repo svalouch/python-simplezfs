@@ -93,8 +93,6 @@ class ZFS:
     @metadata_namespace.setter
     def metadata_namespace(self, namespace: str) -> None:
         '''
-        Sets a new metadata namespace
-
         :todo: validate!
         '''
         self._metadata_namespace = namespace
@@ -102,15 +100,12 @@ class ZFS:
     @property
     def pe_helper(self) -> Optional[PEHelperBase]:
         '''
-        Returns the pe_helper, which may be None if not set.
+        Returns or changes the privilege escalation (PE) helper. A value of ``None`` means none set.
         '''
         return self._pe_helper
 
     @pe_helper.setter
     def pe_helper(self, helper: Optional[PEHelperBase]) -> None:
-        '''
-        Sets the privilege escalation (PE) helper. Supply ``None`` to unset it.
-        '''
         if helper is None:
             log.debug('PE helper is None')
         self._pe_helper = helper
@@ -119,12 +114,15 @@ class ZFS:
     @property
     def use_pe_helper(self) -> bool:
         '''
-        Returns whether the privilege escalation (PE) helper should be used. If the helper has not been set, this
-        property evaluates to ``False``.
+        Returns or sets whether the privilege escalation (PE) helper should be used. If the helper has not been set,
+        reading the property returns ``False``.
 
         .. deprecated:: 0.0.3
-           Use :func:`~simplezfs.zfs.pe_helper_mode` instead. Returns whether the helper mode is **not** set to
-           ``PEHelperMode.DO_NOT_USE`` if the helper is set.
+           Use :func:`~simplezfs.zfs.ZFS.pe_helper_mode` instead. Returns whether the helper mode is **not** set to
+           ``PEHelperMode.DO_NOT_USE`` if the helper is set. If set to ``False``, sets the mode to
+           :attr:`~simplezfs.types.PEHelperMode.DO_NOT_USE`, ``True`` sets it to
+           :attr:`~simplezfs.types.PEHelperMode.USE_IF_REQUIRED` unless it is already set to
+           :attr:`~simplezfs.types.PEHelperMode.USE_PROACTIVE`, in which case it will do nothing.
 
            This property will be removed in 0.0.4!
         '''
@@ -135,16 +133,6 @@ class ZFS:
     # TODO remove this in 0.0.4
     @use_pe_helper.setter
     def use_pe_helper(self, use: bool) -> None:
-        '''
-        Enable or disable using the privilege escalation (PE) helper.
-
-        .. deprecated:: 0.0.3
-           Use :func:`~simplezfs.zfs.pe_helper_mode` instead. If set to ``False``, sets the mode to
-           ``PEHelperMode.DO_NOT_USE``, ``True`` sets to ``PEHelperMode.USE_IF_NEEDED`` unless it is set to
-           ``PEHelperMode.USE_PROACTIVE`` already, in which case it will do nothing.
-
-           This property will be removed in 0.0.4!
-        '''
         if use:
             if self.pe_helper_mode == PEHelperMode.DO_NOT_USE:
                 self.pe_helper_mode = PEHelperMode.USE_PROACTIVE
@@ -157,8 +145,8 @@ class ZFS:
     @property
     def pe_helper_mode(self) -> PEHelperMode:
         '''
-        Returns whether the privilege escalation (PE) helper should be used and when. If the helper has not been set,
-        this property evaluates to ``False``.
+        Returns or sets whether the privilege escalation (PE) helper should be used and when. If the helper has not
+        been set, this property evaluates to ``False``.
 
         .. versionadded:: 0.0.3
         '''
@@ -168,11 +156,6 @@ class ZFS:
 
     @pe_helper_mode.setter
     def pe_helper_mode(self, mode: PEHelperMode) -> None:
-        '''
-        Sets the privilege escalation (PE) helper mode.
-
-        .. versionadded:: 0.0.3
-        '''
         self._pe_helper_mode = mode
 
     def dataset_exists(self, name: str) -> bool:
@@ -424,7 +407,7 @@ class ZFS:
             no default has been set, format the key using ``namespace:key``.
         :return: Info about the newly created dataset.
         :raises ValidationError: If validating the parameters failed.
-        :raises DatasetNotFOund: If the dataset can't be found.
+        :raises DatasetNotFound: If the dataset can't be found.
         '''
         return self.create_dataset(
             f'{dataset}@{name}',
@@ -477,7 +460,7 @@ class ZFS:
             parameter for ``zfs create``.
         :return: Info about the newly created dataset.
         :raises ValidationError: If validating the parameters failed.
-        :raises DatasetNotFOund: If the parent dataset can't be found and ``recursive`` is `False`.
+        :raises DatasetNotFound: If the parent dataset can't be found and ``recursive`` is `False`.
         '''
         if mountpoint is not None:
             if properties is None:
@@ -510,10 +493,10 @@ class ZFS:
 
         .. note::
 
-           Please read the note in :func:`~simplezfs.ZFS.create_filesystem` for permission handling for filesystems.
+           Please read the note in :func:`~simplezfs.zfs.ZFS.create_fileset` for permission handling for filesystems.
            Generally, if the user does not have permission to set certain properties, the dataset may or may not have
-           been created but is missing the properties. It is up to the user of the library to clean up after
-           catching a :class:`+simplezfs.exceptions.PermissionError`.
+           been created but is missing the properties. It is up to the user of the library to clean up after catching a
+           :class:`~simplezfs.exceptions.PermissionError`.
 
         :param name: Name of the new volume (complete path in the ZFS hierarchy).
         :param size: The size (in `bytes`) for the new volume.

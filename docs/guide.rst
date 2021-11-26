@@ -171,8 +171,8 @@ return information about the internal states (like ``creation`` time).
 
 .. note:: The python library does not validate the names of native properties, as these are subject to change with the
           ZFS version and it would mean that the library needs an update every time a new ZFS version changes some of
-          these. Thus, it relies on validating the input for syntax based on the ZFS documentation of the ZFS on Linux
-          (ZoL) project and ZFS telling it that it did not like a name.
+          these. Thus, it relies on validating the input for syntax based on the ZFS documentation of the OpenZFS
+          project and ZFS telling it that it did not like a name.
 
 A word on metadata/user properties
 ----------------------------------

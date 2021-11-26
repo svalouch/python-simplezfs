@@ -10,10 +10,11 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+import os
 
+# -- Read-the-docs specifics -------------------------------------------------
+
+on_rtd = os.environ.get('READTHEDOCS') == 'True'
 
 # -- Project information -----------------------------------------------------
 
@@ -22,7 +23,7 @@ copyright = '2019-2020, Andreas Gonschorek, Stefan Valouch'
 author = 'Andreas Gonschorek, Stefan Valouch'
 
 # The full version, including alpha/beta/rc tags
-release = '0.0.2'
+release = '0.0.3'
 
 
 # -- General configuration ---------------------------------------------------
@@ -34,6 +35,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.todo',
     'sphinx_autodoc_typehints',
+    'recommonmark',
 ]
 
 # Add any paths that contain templates here, relative to this directory.

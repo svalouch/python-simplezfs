@@ -2,6 +2,8 @@
 Python-SimpleZFS
 ################
 
+**Warning**: This repository is no longer maintained.
+
 A thin wrapper around ZFS from the OpenZFS_ project.
 
 The library aims at providing a simple, low-level interface for working with ZFS, either by wrapping the ``zfs(8)`` and

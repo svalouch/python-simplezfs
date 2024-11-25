@@ -291,7 +291,7 @@ class ZFSCli(ZFS):
             for metakey, metavalue in metadata_properties.items():
                 prop_args += ['-o', f'{metakey}={metavalue}']
 
-        args = [self.__exe, 'create']
+        args = [self.__exe, 'snapshot']
         if recursive:
             args += ['-r']
 
